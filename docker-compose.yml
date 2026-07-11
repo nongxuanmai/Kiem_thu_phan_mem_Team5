@@ -1,0 +1,27 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: fashionbag-backend
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_PATH=/app/db/fashionbag.db
+    volumes:
+      - ./backend/db:/app/db
+      - ./backend/uploads:/app/uploads
+    restart: always
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: fashionbag-frontend
+    ports:
+      - "5173:80"
+    depends_on:
+      - backend
+    restart: always
