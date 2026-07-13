@@ -136,6 +136,8 @@ class DonHangOut(BaseModel):
     phuongthuc: Optional[str] = None
     ghichu: Optional[str] = None
     tongtien: Optional[float] = None
+    trangthai: Optional[str] = "Đã đặt"
+    lydo_huy: Optional[str] = None
 
     class Config:
         from_attributes = True
@@ -143,3 +145,14 @@ class DonHangOut(BaseModel):
 
 class DonHangChiTiet(DonHangOut):
     items: list[GioHangOut] = []
+
+
+# ─────────────────────────── Yêu cầu hủy đơn ─────────────────────────────
+class YeuCauHuyDon(BaseModel):
+    """Khách hàng gửi yêu cầu hủy đơn kèm lý do."""
+    lydo_huy: str
+
+
+class DuyetHuyDon(BaseModel):
+    """Admin duyệt hoặc từ chối yêu cầu hủy đơn."""
+    chap_thuan: bool  # True = đồng ý hủy, False = từ chối

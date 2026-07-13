@@ -19,6 +19,20 @@ def get_db():
         conn.close()
 
 
+def migrate_database(conn: sqlite3.Connection):
+    """Chạy migration thêm cột mới nếu chưa tồn tại."""
+    # Kiểm tra cột hiện có trong bảng DonHang
+    existing_cols = {row[1] for row in conn.execute("PRAGMA table_info(DonHang)").fetchall()}
+    if "trangthai" not in existing_cols:
+        conn.execute("ALTER TABLE DonHang ADD COLUMN trangthai TEXT DEFAULT 'Đã đặt'")
+        conn.execute("UPDATE DonHang SET trangthai = 'Đã đặt' WHERE trangthai IS NULL")
+        print("[DB] Migration: added column 'trangthai' to DonHang")
+    if "lydo_huy" not in existing_cols:
+        conn.execute("ALTER TABLE DonHang ADD COLUMN lydo_huy TEXT")
+        print("[DB] Migration: added column 'lydo_huy' to DonHang")
+    conn.commit()
+
+
 def init_database():
     """Khởi tạo database từ file SQL."""
     db_dir = os.path.dirname(DB_PATH)
@@ -30,5 +44,7 @@ def init_database():
         sql = f.read()
     conn.executescript(sql)
     conn.commit()
+    migrate_database(conn)  # Chạy migration sau init
     conn.close()
     print(f"[DB] Database initialized at: {DB_PATH}")
+

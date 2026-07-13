@@ -3,9 +3,35 @@ import { Navigate } from 'react-router-dom';
 import { authAPI } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 
+const RULES = {
+  sdt: (v) => {
+    if (!v) return '';
+    if (v.length < 10) return `Số điện thoại chưa đủ (hiện có ${v.length}/10 số).`;
+    if (!/^0(3|5|7|8|9)\d{8}$/.test(v)) return 'Số điện thoại không hợp lệ (phải đủ 10 số và bắt đầu bằng 03, 05, 07, 08, 09).';
+    return '';
+  },
+  email: (v) => {
+    if (!v) return '';
+    if (!/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(v.trim())) {
+      return 'Email không đúng định dạng (ví dụ: example@gmail.com).';
+    }
+    return '';
+  }
+};
+
+function FieldError({ msg }) {
+  if (!msg) return null;
+  return (
+    <div style={{ color: '#c62828', fontSize: 12, marginTop: 4, fontWeight: 500 }}>
+      ⚠️ {msg}
+    </div>
+  );
+}
+
 export default function ProfilePage() {
   const { user, login } = useAuth();
   const [form, setForm] = useState({ hoten: '', gioitinh: '', sdt: '', email: '', namsinh: '' });
+  const [touched, setTouched] = useState({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState('');
@@ -20,15 +46,23 @@ export default function ProfilePage() {
     });
   }, []);
 
+  const getError = (field) => (touched[field] && RULES[field] ? RULES[field](form[field]) : '');
+
   const handleSave = async e => {
     e.preventDefault();
+    setTouched({ sdt: true, email: true });
+    if (RULES.sdt(form.sdt) || RULES.email(form.email)) {
+      setMsg('Vui lòng kiểm tra và sửa thông tin bị lỗi trước khi lưu!');
+      return;
+    }
+
     setSaving(true); setMsg('');
     try {
       const res = await authAPI.updateMe({ ...form, namsinh: form.namsinh ? Number(form.namsinh) : null });
       login({ ...user, hoten: res.data.hoten }, localStorage.getItem('access_token'));
       setMsg('Cập nhật thành công!');
     } catch {
-      setMsg('Cập nhật thất bại.');
+      setMsg('Cập nhật thất bại. Vui lòng kiểm tra lại dữ liệu.');
     } finally {
       setSaving(false);
     }
@@ -60,7 +94,7 @@ export default function ProfilePage() {
               </div>
             </div>
 
-            <form onSubmit={handleSave}>
+            <form onSubmit={handleSave} noValidate>
               <div className="form-group">
                 <label className="form-label">Họ Tên</label>
                 <input className="form-control" placeholder="Nguyễn Văn A" value={form.hoten} onChange={e => setForm({ ...form, hoten: e.target.value })} />
@@ -68,11 +102,30 @@ export default function ProfilePage() {
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
                 <div className="form-group">
                   <label className="form-label">Email</label>
-                  <input type="email" className="form-control" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} />
+                  <input
+                    type="email"
+                    className="form-control"
+                    value={form.email}
+                    onChange={e => setForm({ ...form, email: e.target.value })}
+                    onBlur={() => setTouched(t => ({ ...t, email: true }))}
+                  />
+                  <FieldError msg={getError('email')} />
                 </div>
                 <div className="form-group">
                   <label className="form-label">Số Điện Thoại</label>
-                  <input className="form-control" value={form.sdt} onChange={e => setForm({ ...form, sdt: e.target.value })} />
+                  <input
+                    type="tel"
+                    className="form-control"
+                    value={form.sdt}
+                    maxLength={10}
+                    onChange={e => {
+                      const val = e.target.value.replace(/\D/g, '').slice(0, 10);
+                      setForm({ ...form, sdt: val });
+                    }}
+                    onBlur={() => setTouched(t => ({ ...t, sdt: true }))}
+                    inputMode="numeric"
+                  />
+                  <FieldError msg={getError('sdt')} />
                 </div>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>

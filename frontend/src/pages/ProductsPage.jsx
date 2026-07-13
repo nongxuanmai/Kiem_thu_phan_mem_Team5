@@ -1,7 +1,27 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { sanphamAPI, danhmucAPI } from '../services/api';
 import ProductCard from '../components/ProductCard';
+
+const SORT_OPTIONS = [
+  { value: 'az',         label: 'Theo ký tự (A - Z)' },
+  { value: 'price_asc',  label: 'Giá: Thấp đến Cao' },
+  { value: 'price_desc', label: 'Giá: Cao đến Thấp' },
+  { value: 'popular',    label: 'Bán Chạy' },
+  { value: 'newest',     label: 'Mới Nhất' },
+];
+
+function sortProducts(list, sortBy) {
+  const arr = [...list];
+  switch (sortBy) {
+    case 'az':         return arr.sort((a, b) => (a.ten_sp || '').localeCompare(b.ten_sp || '', 'vi'));
+    case 'price_asc':  return arr.sort((a, b) => (a.gia_sp || 0) - (b.gia_sp || 0));
+    case 'price_desc': return arr.sort((a, b) => (b.gia_sp || 0) - (a.gia_sp || 0));
+    case 'popular':    return arr.sort((a, b) => (b.soluong_sp || 0) - (a.soluong_sp || 0));
+    case 'newest':     return arr.sort((a, b) => b.id_sp - a.id_sp);
+    default:           return arr;
+  }
+}
 
 export default function ProductsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -9,6 +29,7 @@ export default function ProductsPage() {
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [sortBy, setSortBy] = useState('az');
   const activeCategory = searchParams.get('id_dm') ? Number(searchParams.get('id_dm')) : null;
 
   useEffect(() => {
@@ -24,6 +45,8 @@ export default function ProductsPage() {
       .then(r => setProducts(r.data))
       .finally(() => setLoading(false));
   }, [activeCategory, search]);
+
+  const sortedProducts = useMemo(() => sortProducts(products, sortBy), [products, sortBy]);
 
   const handleSearch = e => {
     e.preventDefault();
@@ -71,10 +94,26 @@ export default function ProductsPage() {
           ))}
         </div>
 
+        {/* Sort Bar */}
+        <div className="sort-bar">
+          <span className="sort-label">Sắp xếp theo:</span>
+          <div className="sort-chips">
+            {SORT_OPTIONS.map(opt => (
+              <button
+                key={opt.value}
+                className={`sort-chip ${sortBy === opt.value ? 'active' : ''}`}
+                onClick={() => setSortBy(opt.value)}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
         {/* Results */}
         {loading ? (
           <div className="spinner" />
-        ) : products.length === 0 ? (
+        ) : sortedProducts.length === 0 ? (
           <div className="empty-state">
             <div style={{ fontSize: 64 }}>🔍</div>
             <h3>Không tìm thấy sản phẩm</h3>
@@ -83,10 +122,10 @@ export default function ProductsPage() {
         ) : (
           <>
             <p style={{ color: 'var(--text-muted)', marginBottom: 24, fontSize: 14 }}>
-              Hiển thị {products.length} sản phẩm
+              Hiển thị {sortedProducts.length} sản phẩm
             </p>
             <div className="product-grid">
-              {products.map(p => <ProductCard key={p.id_sp} product={p} />)}
+              {sortedProducts.map(p => <ProductCard key={p.id_sp} product={p} />)}
             </div>
           </>
         )}

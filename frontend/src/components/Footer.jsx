@@ -41,7 +41,7 @@ export default function Footer() {
           </div>
         </div>
         <div className="footer-bottom">
-          © 2024 FashionBag. Bảo lưu mọi quyền.
+          © {new Date().getFullYear()} FashionBag. Bảo lưu mọi quyền.
         </div>
       </div>
     </footer>
