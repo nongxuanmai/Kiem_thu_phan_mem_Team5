@@ -18,7 +18,18 @@ export default function HomePage() {
   useEffect(() => {
     Promise.all([sanphamAPI.getAll(), danhmucAPI.getAll()])
       .then(([pRes, cRes]) => {
-        setProducts(pRes.data.slice(0, 8));
+        const allProducts = pRes.data;
+        // Nhóm sản phẩm theo danh mục, lấy tối đa 2 sản phẩm mỗi loại
+        const grouped = {};
+        allProducts.forEach(p => {
+          if (!grouped[p.id_dm]) grouped[p.id_dm] = [];
+          if (grouped[p.id_dm].length < 2) grouped[p.id_dm].push(p);
+        });
+        // Ghép lại: 1 sản phẩm từ mỗi danh mục trước, sau đó sản phẩm thứ 2
+        const round1 = Object.values(grouped).map(arr => arr[0]).filter(Boolean);
+        const round2 = Object.values(grouped).map(arr => arr[1]).filter(Boolean);
+        const featured = [...round1, ...round2].slice(0, 8);
+        setProducts(featured);
         setCategories(cRes.data);
       })
       .finally(() => setLoading(false));
@@ -30,7 +41,7 @@ export default function HomePage() {
       <section className="hero">
         <div className="container" style={{ display: 'flex', alignItems: 'center', gap: 64, width: '100%' }}>
           <div className="hero-content">
-            <div className="hero-badge">✨ BST Mới 2024</div>
+            <div className="hero-badge">✨ BST Mới {new Date().getFullYear()}</div>
             <h1 className="hero-title">
               Túi Xách<br />
               <span>Thời Trang</span><br />

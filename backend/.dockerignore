@@ -5,5 +5,11 @@ __pycache__/
 .venv/
 venv/
 .env
-*.db
+# Loại trừ file .db ở thư mục gốc (database.db, v.v.) nhưng GIỮ db/ và fashionbag.db
+database.db
 uploads/
+# Không cần các script phụ
+download_real_images.py
+reload_db.py
+rewrite_sanpham.py
+test_unsplash.py

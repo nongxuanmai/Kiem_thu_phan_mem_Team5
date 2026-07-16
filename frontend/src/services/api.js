@@ -16,7 +16,8 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (res) => res,
   (err) => {
-    if (err.response?.status === 401) {
+    // Không redirect nếu là request đăng nhập (để LoginPage hiển thị thông báo lỗi)
+    if (err.response?.status === 401 && !err.config?.url?.includes('/auth/login')) {
       localStorage.removeItem('access_token');
       localStorage.removeItem('user');
       window.location.href = '/login';
@@ -33,6 +34,10 @@ export const authAPI = {
   login: (data) => api.post('/auth/login', data),
   getMe: () => api.get('/auth/me'),
   updateMe: (data) => api.put('/auth/me', data),
+  changePassword: (data) => api.post('/auth/change-password', data),
+  sendOtp: (data) => api.post('/auth/send-otp', data),
+  resetPassword: (data) => api.post('/auth/reset-password', data),
+  resetPasswordDirect: (data) => api.post('/auth/reset-password-direct', data),
   getUsers: () => api.get('/auth/users'),
   deleteUser: (id) => api.delete(`/auth/users/${id}`),
 };
@@ -65,4 +70,13 @@ export const donhangAPI = {
   getById: (id) => api.get(`/donhang/${id}`),
   getAll: () => api.get('/donhang'),
   delete: (id) => api.delete(`/donhang/${id}`),
+  // Khách hàng gửi yêu cầu hủy kèm lý do
+  requestCancel: (id, lydo_huy) => api.post(`/donhang/my-orders/${id}/request-cancel`, { lydo_huy }),
+  // Admin xem danh sách yêu cầu chờ duyệt hủy
+  getCancelRequests: () => api.get('/donhang/cancel-requests'),
+  // Admin duyệt hoặc từ chối yêu cầu hủy
+  reviewCancel: (id, chap_thuan) => api.post(`/donhang/cancel-requests/${id}/review`, { chap_thuan }),
+  // Admin cập nhật trạng thái thủ công
+  updateStatus: (id, trangthai) => api.patch(`/donhang/${id}/trangthai`, null, { params: { trangthai } }),
 };
+
