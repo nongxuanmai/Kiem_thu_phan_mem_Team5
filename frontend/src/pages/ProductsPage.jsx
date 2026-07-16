@@ -33,7 +33,9 @@ export default function ProductsPage() {
   const activeCategory = searchParams.get('id_dm') ? Number(searchParams.get('id_dm')) : null;
 
   useEffect(() => {
-    danhmucAPI.getAll().then(r => setCategories(r.data));
+    danhmucAPI.getAll()
+      .then(r => setCategories(r.data))
+      .catch(() => setCategories([]));
   }, []);
 
   useEffect(() => {
@@ -43,6 +45,7 @@ export default function ProductsPage() {
     if (search) params.search = search;
     sanphamAPI.getAll(params)
       .then(r => setProducts(r.data))
+      .catch(() => setProducts([]))
       .finally(() => setLoading(false));
   }, [activeCategory, search]);
 

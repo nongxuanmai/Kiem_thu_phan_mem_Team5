@@ -67,6 +67,13 @@ function inputStyle(hasError) {
   return hasError ? { borderColor: '#ef5350', boxShadow: '0 0 0 3px rgba(239, 83, 80, 0.15)' } : {};
 }
 
+const VOUCHERS = [
+  { code: 'FASHION10', name: 'Giảm 10% đơn hàng', type: 'percent', val: 10, freeship: false, desc: 'Giảm 10% trên tổng giá trị sản phẩm' },
+  { code: 'FREESHIP30', name: 'Miễn phí vận chuyển 🚚', type: 'ship', val: 30000, freeship: true, desc: 'Miễn 100% phí giao hàng toàn quốc (30.000đ)' },
+  { code: 'BAG50K', name: 'Voucher 50.000đ 🏷️', type: 'fixed', val: 50000, freeship: false, desc: 'Trừ trực tiếp 50k vào đơn mua túi' },
+  { code: 'VIPBAG20', name: 'Ưu đãi VIP (20% + Miễn ship) 🔥', type: 'combo', val: 20, freeship: true, desc: 'Giảm ngay 20% và Miễn phí vận chuyển' }
+];
+
 export default function CheckoutPage() {
   const { cartItems, totalPrice, clearCart } = useCart();
   const { user } = useAuth();
@@ -79,12 +86,62 @@ export default function CheckoutPage() {
     phuongthuc: 'COD',
     ghichu: ''
   });
+  const [selectedVoucher, setSelectedVoucher] = useState(null);
+  const [inputCode, setInputCode] = useState('');
+  const [voucherMsg, setVoucherMsg] = useState({ type: '', text: '' });
   const [touched, setTouched] = useState({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
   if (!user) return <Navigate to="/login" />;
   if (cartItems.length === 0) return <Navigate to="/products" />;
+
+  // Tính toán giảm giá & tổng tiền
+  const originalShipping = 30000;
+  const isFreeship = selectedVoucher?.freeship;
+  const shippingFee = isFreeship ? 0 : originalShipping;
+
+  let discountAmount = 0;
+  if (selectedVoucher) {
+    if (selectedVoucher.type === 'percent' || selectedVoucher.type === 'combo') {
+      discountAmount = Math.round((totalPrice * selectedVoucher.val) / 100);
+    } else if (selectedVoucher.type === 'fixed') {
+      discountAmount = selectedVoucher.val;
+    }
+  }
+
+  const finalTotal = Math.max(0, totalPrice + shippingFee - discountAmount);
+
+  const applyVoucherCode = (codeToApply) => {
+    const code = (codeToApply || inputCode).trim().toUpperCase();
+    if (!code) {
+      setSelectedVoucher(null);
+      setVoucherMsg({ type: '', text: '' });
+      return;
+    }
+
+    const found = VOUCHERS.find(v => v.code === code);
+    if (found) {
+      setSelectedVoucher(found);
+      setInputCode(found.code);
+      setVoucherMsg({ type: 'success', text: `✅ Đã áp dụng voucher: ${found.name}` });
+    } else {
+      setSelectedVoucher(null);
+      setVoucherMsg({ type: 'error', text: '❌ Mã giảm giá không tồn tại hoặc đã hết hạn.' });
+    }
+  };
+
+  const toggleVoucherSelect = (voucher) => {
+    if (selectedVoucher?.code === voucher.code) {
+      setSelectedVoucher(null);
+      setInputCode('');
+      setVoucherMsg({ type: '', text: '' });
+    } else {
+      setSelectedVoucher(voucher);
+      setInputCode(voucher.code);
+      setVoucherMsg({ type: 'success', text: `✅ Đã áp dụng voucher: ${voucher.name}` });
+    }
+  };
 
   const getError = (field) => (touched[field] && RULES[field] ? RULES[field](form[field]) : '');
 
@@ -104,7 +161,7 @@ export default function CheckoutPage() {
   const handleSubmit = async e => {
     e.preventDefault();
     setTouched({ hoten: true, sdt: true, email: true, diachi: true });
-    
+
     if (!isFormValid()) {
       setError('Vui lòng kiểm tra và sửa thông tin còn thiếu hoặc sai sót bên dưới!');
       return;
@@ -114,6 +171,7 @@ export default function CheckoutPage() {
     try {
       const payload = {
         ...form,
+        tongtien: finalTotal,
         items: cartItems.map(i => ({ id_sp: i.id_sp, soluong: i.soluong }))
       };
       await donhangAPI.create(payload);
@@ -147,7 +205,7 @@ export default function CheckoutPage() {
           <form onSubmit={handleSubmit} noValidate>
             <div className="card" style={{ padding: 32, marginBottom: 24 }}>
               <h3 style={{ marginBottom: 24, fontFamily: 'Playfair Display,serif' }}>Thông Tin Giao Hàng</h3>
-              
+
               {/* Họ Tên */}
               <div className="form-group">
                 <label className="form-label">
@@ -234,11 +292,11 @@ export default function CheckoutPage() {
             </div>
 
             <button type="submit" className="btn btn-primary w-full" disabled={loading} style={{ justifyContent: 'center', fontSize: 16, padding: '16px' }}>
-              {loading ? 'Đang xử lý...' : `Đặt Hàng · ${formatPrice(totalPrice)}`}
+              {loading ? 'Đang xử lý...' : `Đặt Hàng · ${formatPrice(finalTotal)}`}
             </button>
           </form>
 
-          {/* Order Summary */}
+          {/* Order Summary & Voucher Selector */}
           <div className="checkout-summary">
             <h3 style={{ fontFamily: 'Playfair Display,serif', marginBottom: 20 }}>Đơn Hàng ({cartItems.length} sản phẩm)</h3>
             {cartItems.map(item => (
@@ -256,18 +314,113 @@ export default function CheckoutPage() {
                 <div style={{ fontWeight: 700, color: 'var(--primary)' }}>{formatPrice(item.gia_sp * item.soluong)}</div>
               </div>
             ))}
-            <div style={{ borderTop: '1px solid var(--border)', paddingTop: 16, marginTop: 8 }}>
+
+            {/* Chọn Voucher / Mã Giảm Giá */}
+            <div style={{ marginTop: 24, borderTop: '1px solid var(--border)', paddingTop: 20 }}>
+              <div style={{ fontWeight: 700, fontSize: 15, color: 'var(--secondary)', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
+                🎟️ Chọn Mã Giảm Giá / Voucher Ship
+              </div>
+
+              {/* Ô nhập mã */}
+              <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
+                <input
+                  className="form-control"
+                  placeholder="Nhập mã ưu đãi..."
+                  value={inputCode}
+                  onChange={e => setInputCode(e.target.value.toUpperCase())}
+                  style={{ textTransform: 'uppercase', fontWeight: 600 }}
+                />
+                <button
+                  type="button"
+                  className="btn btn-outline"
+                  onClick={() => applyVoucherCode()}
+                  style={{ flexShrink: 0 }}
+                >
+                  Áp dụng
+                </button>
+              </div>
+
+              {/* Thông báo voucher */}
+              {voucherMsg.text && (
+                <div style={{
+                  fontSize: 13, marginBottom: 14, fontWeight: 600,
+                  color: voucherMsg.type === 'success' ? '#2e7d32' : '#c62828'
+                }}>
+                  {voucherMsg.text}
+                </div>
+              )}
+
+              {/* Danh sách Voucher khả dụng */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10, maxHeight: 220, overflowY: 'auto', paddingRight: 4 }}>
+                {VOUCHERS.map(v => {
+                  const isSelected = selectedVoucher?.code === v.code;
+                  return (
+                    <div
+                      key={v.code}
+                      onClick={() => toggleVoucherSelect(v)}
+                      style={{
+                        padding: '12px 14px', borderRadius: 12, cursor: 'pointer',
+                        border: isSelected ? '2px solid var(--primary)' : '1px solid var(--border)',
+                        background: isSelected ? 'var(--primary-light)' : '#fff',
+                        transition: 'all 0.2s ease', display: 'flex', justifyContent: 'space-between', alignItems: 'center'
+                      }}
+                    >
+                      <div>
+                        <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--secondary)' }}>
+                          {v.name}
+                        </div>
+                        <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
+                          {v.desc}
+                        </div>
+                      </div>
+                      <span style={{
+                        fontSize: 12, fontWeight: 700,
+                        padding: '4px 10px', borderRadius: 20,
+                        background: isSelected ? 'var(--primary)' : '#f0f0f0',
+                        color: isSelected ? '#fff' : 'var(--text)'
+                      }}>
+                        {isSelected ? '✓ Đã chọn' : 'Dùng mã'}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Chi tiết tính tổng tiền */}
+            <div style={{ borderTop: '1px solid var(--border)', paddingTop: 16, marginTop: 16 }}>
               <div className="flex-between" style={{ marginBottom: 8 }}>
-                <span style={{ color: 'var(--text-muted)' }}>Tạm tính:</span>
+                <span style={{ color: 'var(--text-muted)' }}>Tạm tính sản phẩm:</span>
                 <span>{formatPrice(totalPrice)}</span>
               </div>
-              <div className="flex-between" style={{ marginBottom: 16 }}>
+
+              {/* Phí vận chuyển */}
+              <div className="flex-between" style={{ marginBottom: 8 }}>
                 <span style={{ color: 'var(--text-muted)' }}>Phí vận chuyển:</span>
-                <span style={{ color: 'var(--success)', fontWeight: 600 }}>Miễn phí</span>
+                {isFreeship ? (
+                  <div>
+                    <span style={{ textDecoration: 'line-through', color: 'var(--text-muted)', marginRight: 6, fontSize: 12 }}>
+                      {formatPrice(originalShipping)}
+                    </span>
+                    <span style={{ color: 'var(--success)', fontWeight: 700 }}>Miễn phí 🚚</span>
+                  </div>
+                ) : (
+                  <span>{formatPrice(originalShipping)}</span>
+                )}
               </div>
-              <div className="flex-between">
-                <span style={{ fontWeight: 700, fontSize: 16 }}>Tổng cộng:</span>
-                <span style={{ fontWeight: 700, fontSize: 20, color: 'var(--primary)' }}>{formatPrice(totalPrice)}</span>
+
+              {/* Giảm giá voucher */}
+              {discountAmount > 0 && (
+                <div className="flex-between" style={{ marginBottom: 8, color: '#e65100' }}>
+                  <span>Giảm giá Voucher ({selectedVoucher.code}):</span>
+                  <span style={{ fontWeight: 700 }}>-{formatPrice(discountAmount)}</span>
+                </div>
+              )}
+
+              {/* Tổng thanh toán */}
+              <div className="flex-between" style={{ borderTop: '1px dashed var(--border)', paddingTop: 12, marginTop: 8 }}>
+                <span style={{ fontWeight: 700, fontSize: 16 }}>Tổng thanh toán:</span>
+                <span style={{ fontWeight: 800, fontSize: 22, color: 'var(--primary-dark)' }}>{formatPrice(finalTotal)}</span>
               </div>
             </div>
           </div>

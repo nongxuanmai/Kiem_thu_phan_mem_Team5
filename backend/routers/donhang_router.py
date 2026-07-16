@@ -67,7 +67,7 @@ def get_my_orders(
     for order in orders:
         order_dict = dict(order)
         items = db.execute(
-            """SELECT gh.soluong, sp.id_sp, sp.ten_sp, sp.gia_sp, sp.anh_sp
+            """SELECT gh.soluong, sp.id_sp, sp.ten_sp, sp.gia_sp, sp.anh_sp, sp.mota_sp
                FROM GioHang gh JOIN SanPham sp ON gh.id_sp = sp.id_sp
                WHERE gh.id_donhang = ?""",
             (order["id_donhang"],)
@@ -125,7 +125,7 @@ def get_cancel_requests(
     for order in orders:
         order_dict = dict(order)
         items = db.execute(
-            """SELECT gh.soluong, sp.id_sp, sp.ten_sp, sp.gia_sp, sp.anh_sp
+            """SELECT gh.soluong, sp.id_sp, sp.ten_sp, sp.gia_sp, sp.anh_sp, sp.mota_sp
                FROM GioHang gh JOIN SanPham sp ON gh.id_sp = sp.id_sp
                WHERE gh.id_donhang = ?""",
             (order["id_donhang"],)
@@ -207,7 +207,7 @@ def get_order_detail(
 
     order_dict = dict(order)
     items = db.execute(
-        """SELECT gh.soluong, sp.id_sp, sp.ten_sp, sp.gia_sp, sp.anh_sp
+        """SELECT gh.soluong, sp.id_sp, sp.ten_sp, sp.gia_sp, sp.anh_sp, sp.mota_sp
            FROM GioHang gh JOIN SanPham sp ON gh.id_sp = sp.id_sp
            WHERE gh.id_donhang = ?""",
         (id_donhang,)
@@ -224,7 +224,7 @@ def get_all_orders(admin=Depends(get_current_admin), db: sqlite3.Connection = De
     for order in orders:
         order_dict = dict(order)
         items = db.execute(
-            """SELECT gh.soluong, sp.id_sp, sp.ten_sp, sp.gia_sp, sp.anh_sp
+            """SELECT gh.soluong, sp.id_sp, sp.ten_sp, sp.gia_sp, sp.anh_sp, sp.mota_sp
                FROM GioHang gh JOIN SanPham sp ON gh.id_sp = sp.id_sp
                WHERE gh.id_donhang = ?""",
             (order["id_donhang"],)

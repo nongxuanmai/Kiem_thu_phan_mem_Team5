@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { sanphamAPI } from '../services/api';
 import { useCart } from '../contexts/CartContext';
 import { useAuth } from '../contexts/AuthContext';
@@ -40,6 +40,7 @@ const INITIAL_REVIEWS = [
 
 export default function ProductDetailPage() {
   const { id } = useParams();
+  const navigate = useNavigate();
   const { user } = useAuth();
   const { addToCart } = useCart();
 
@@ -84,6 +85,11 @@ export default function ProductDetailPage() {
     addToCart(product, qty);
     setAdded(true);
     setTimeout(() => setAdded(false), 2000);
+  };
+
+  const handleBuyNow = () => {
+    addToCart(product, qty);
+    navigate('/checkout');
   };
 
   const handleAddReview = (e) => {
@@ -212,9 +218,14 @@ export default function ProductDetailPage() {
               >
                 {added ? '✓ Đã thêm vào giỏ!' : '🛍️ Thêm vào giỏ hàng'}
               </button>
-              <Link to="/checkout" className="btn btn-dark" style={{ flex: 1, justifyContent: 'center', padding: '14px 20px' }}>
+              <button
+                className="btn btn-dark"
+                onClick={handleBuyNow}
+                disabled={product.soluong_sp === 0}
+                style={{ flex: 1, justifyContent: 'center', padding: '14px 20px' }}
+              >
                 Mua Ngay
-              </Link>
+              </button>
             </div>
           </div>
         </div>

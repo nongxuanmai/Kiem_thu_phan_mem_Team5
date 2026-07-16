@@ -7,6 +7,17 @@ function formatPrice(p) {
   return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(p || 0);
 }
 
+function formatDateTime(dt) {
+  if (!dt) return '---';
+  const d = new Date(dt);
+  const hh = String(d.getHours()).padStart(2, '0');
+  const mm = String(d.getMinutes()).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  const mo = String(d.getMonth() + 1).padStart(2, '0');
+  const yyyy = d.getFullYear();
+  return `${hh}:${mm} - ${dd}/${mo}/${yyyy}`;
+}
+
 const TABS = [
   { key: 'dashboard', label: '📊 Tổng Quan' },
   { key: 'products', label: '👜 Sản Phẩm' },
@@ -27,6 +38,38 @@ const STATUS_STYLE = {
   'Đã hủy':        { bg: '#ffebee', color: '#b71c1c' },
 };
 
+// ── Sort Bar Component ─────────────────────────────────────
+function SortBar({ options, value, onChange }) {
+  return (
+    <div style={{
+      display: 'flex', alignItems: 'center', gap: 10,
+      background: 'var(--surface)', border: '1px solid var(--border)',
+      borderRadius: 12, padding: '10px 16px', marginBottom: 18,
+      flexWrap: 'wrap'
+    }}>
+      <span style={{ fontWeight: 700, color: 'var(--secondary)', fontSize: 13, whiteSpace: 'nowrap' }}>⇅ Sắp xếp theo:</span>
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        {options.map(opt => (
+          <button
+            key={opt.value}
+            onClick={() => onChange(opt.value)}
+            style={{
+              padding: '5px 14px', borderRadius: 20, fontSize: 12, fontWeight: 600,
+              border: '1.5px solid',
+              borderColor: value === opt.value ? 'var(--primary)' : 'var(--border)',
+              background: value === opt.value ? 'var(--primary)' : 'transparent',
+              color: value === opt.value ? '#fff' : 'var(--text-muted)',
+              cursor: 'pointer', transition: 'all 0.18s',
+            }}
+          >
+            {opt.label}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function AdminPage() {
   const { user, isAdmin } = useAuth();
   const [tab, setTab] = useState('dashboard');
@@ -42,6 +85,9 @@ export default function AdminPage() {
   const [msg, setMsg] = useState('');
   const [selectedFile, setSelectedFile] = useState(null);
   const [previewUrl, setPreviewUrl] = useState(null);
+  const [productSort, setProductSort] = useState('id_asc');
+  const [orderSort, setOrderSort] = useState('id_desc');
+  const [viewOrder, setViewOrder] = useState(null); // order detail modal
 
   if (!user) return <Navigate to="/login" />;
   if (!isAdmin) return <Navigate to="/" />;
@@ -241,7 +287,7 @@ export default function AdminPage() {
                       <td>#{o.id_donhang}</td>
                       <td>{o.hoten}</td>
                       <td style={{ color: 'var(--primary)', fontWeight: 700 }}>{formatPrice(o.tongtien)}</td>
-                      <td style={{ color: 'var(--text-muted)' }}>{new Date(o.thoigiandat).toLocaleDateString('vi-VN')}</td>
+                      <td style={{ color: 'var(--text-muted)' }}>{formatDateTime(o.thoigiandat)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -251,44 +297,70 @@ export default function AdminPage() {
         )}
 
         {/* Products Tab */}
-        {tab === 'products' && (
-          <>
-            <div className="admin-header flex-between">
-              <div><h1>Quản Lý Sản Phẩm</h1><p>{products.length} sản phẩm</p></div>
-              <button className="btn btn-primary" onClick={() => openProductModal()}>+ Thêm Sản Phẩm</button>
-            </div>
-            <div className="table-wrapper">
-              <table className="data-table">
-                <thead><tr><th>ID</th><th>Ảnh</th><th>Tên Sản Phẩm</th><th>Danh Mục</th><th>Giá</th><th>SL</th><th>Hành Động</th></tr></thead>
-                <tbody>
-                  {products.map(p => (
-                    <tr key={p.id_sp}>
-                      <td>{p.id_sp}</td>
-                      <td>
-                        <img
-                          src={p.anh_sp ? `/uploads/${p.anh_sp}` : `https://placehold.co/50x50/f0ddd0/c8956c?text=Bag`}
-                          alt={p.ten_sp}
-                          style={{ width: 40, height: 40, borderRadius: 8, objectFit: 'cover' }}
-                          onError={e => { e.target.src = `https://placehold.co/50x50/f0ddd0/c8956c?text=Bag`; }}
-                        />
-                      </td>
-                      <td style={{ fontWeight: 600 }}>{p.ten_sp}</td>
-                      <td><span className="badge badge-primary">{p.tendanhmuc || 'N/A'}</span></td>
-                      <td style={{ color: 'var(--primary)', fontWeight: 700 }}>{formatPrice(p.gia_sp)}</td>
-                      <td><span className={`badge ${p.soluong_sp > 0 ? 'badge-success' : 'badge-danger'}`}>{p.soluong_sp}</span></td>
-                      <td>
-                        <div style={{ display: 'flex', gap: 8 }}>
-                          <button className="btn btn-outline btn-sm" onClick={() => openProductModal(p)}>Sửa</button>
-                          <button className="btn btn-danger btn-sm" onClick={() => deleteProduct(p.id_sp)}>Xóa</button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </>
-        )}
+        {tab === 'products' && (() => {
+          const PRODUCT_SORT_OPTIONS = [
+            { value: 'id_asc',    label: '📋 Theo Mã (↑)' },
+            { value: 'id_desc',   label: '📋 Theo Mã (↓)' },
+            { value: 'name_az',   label: '🔤 A → Z' },
+            { value: 'name_za',   label: '🔤 Z → A' },
+            { value: 'price_asc', label: '💰 Giá Thấp → Cao' },
+            { value: 'price_desc',label: '💰 Giá Cao → Thấp' },
+            { value: 'stock_asc', label: '📦 Tồn Kho (↑)' },
+            { value: 'stock_desc',label: '📦 Tồn Kho (↓)' },
+          ];
+          const sortedProducts = [...products].sort((a, b) => {
+            switch (productSort) {
+              case 'id_asc':     return a.id_sp - b.id_sp;
+              case 'id_desc':    return b.id_sp - a.id_sp;
+              case 'name_az':    return (a.ten_sp || '').localeCompare(b.ten_sp || '', 'vi');
+              case 'name_za':    return (b.ten_sp || '').localeCompare(a.ten_sp || '', 'vi');
+              case 'price_asc':  return (a.gia_sp || 0) - (b.gia_sp || 0);
+              case 'price_desc': return (b.gia_sp || 0) - (a.gia_sp || 0);
+              case 'stock_asc':  return (a.soluong_sp || 0) - (b.soluong_sp || 0);
+              case 'stock_desc': return (b.soluong_sp || 0) - (a.soluong_sp || 0);
+              default: return 0;
+            }
+          });
+          return (
+            <>
+              <div className="admin-header flex-between">
+                <div><h1>Quản Lý Sản Phẩm</h1><p>{products.length} sản phẩm</p></div>
+                <button className="btn btn-primary" onClick={() => openProductModal()}>+ Thêm Sản Phẩm</button>
+              </div>
+              <SortBar options={PRODUCT_SORT_OPTIONS} value={productSort} onChange={setProductSort} />
+              <div className="table-wrapper">
+                <table className="data-table">
+                  <thead><tr><th>ID</th><th>Ảnh</th><th>Tên Sản Phẩm</th><th>Danh Mục</th><th>Giá</th><th>SL</th><th>Hành Động</th></tr></thead>
+                  <tbody>
+                    {sortedProducts.map(p => (
+                      <tr key={p.id_sp}>
+                        <td>{p.id_sp}</td>
+                        <td>
+                          <img
+                            src={p.anh_sp ? `/uploads/${p.anh_sp}` : `https://placehold.co/50x50/f0ddd0/c8956c?text=Bag`}
+                            alt={p.ten_sp}
+                            style={{ width: 40, height: 40, borderRadius: 8, objectFit: 'cover' }}
+                            onError={e => { e.target.src = `https://placehold.co/50x50/f0ddd0/c8956c?text=Bag`; }}
+                          />
+                        </td>
+                        <td style={{ fontWeight: 600 }}>{p.ten_sp}</td>
+                        <td><span className="badge badge-primary">{p.tendanhmuc || 'N/A'}</span></td>
+                        <td style={{ color: 'var(--primary)', fontWeight: 700 }}>{formatPrice(p.gia_sp)}</td>
+                        <td><span className={`badge ${p.soluong_sp > 0 ? 'badge-success' : 'badge-danger'}`}>{p.soluong_sp}</span></td>
+                        <td>
+                          <div style={{ display: 'flex', gap: 8 }}>
+                            <button className="btn btn-outline btn-sm" onClick={() => openProductModal(p)}>Sửa</button>
+                            <button className="btn btn-danger btn-sm" onClick={() => deleteProduct(p.id_sp)}>Xóa</button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
+          );
+        })()}
 
         {/* Categories Tab */}
         {tab === 'categories' && (
@@ -320,48 +392,89 @@ export default function AdminPage() {
         )}
 
         {/* Orders Tab */}
-        {tab === 'orders' && (
-          <>
-            <div className="admin-header"><h1>Quản Lý Đơn Hàng</h1><p>{orders.length} đơn hàng</p></div>
-            <div className="table-wrapper">
-              <table className="data-table">
-                <thead><tr><th>ID</th><th>Khách Hàng</th><th>SĐT</th><th>Tổng Tiền</th><th>Trạng Thái</th><th>Ngày Đặt</th><th>Thao Tác</th></tr></thead>
-                <tbody>
-                  {orders.map(o => {
-                    const ss = STATUS_STYLE[o.trangthai] || { bg: '#f5f5f5', color: '#616161' };
-                    return (
-                      <tr key={o.id_donhang}>
-                        <td>#{o.id_donhang}</td>
-                        <td style={{ fontWeight: 600 }}>{o.hoten}</td>
-                        <td>{o.sdt}</td>
-                        <td style={{ color: 'var(--primary)', fontWeight: 700 }}>{formatPrice(o.tongtien)}</td>
-                        <td>
-                          <span style={{
-                            display: 'inline-block', padding: '3px 10px',
-                            borderRadius: 20, fontSize: 12, fontWeight: 700,
-                            background: ss.bg, color: ss.color
-                          }}>{o.trangthai || 'Đã đặt'}</span>
-                        </td>
-                        <td style={{ color: 'var(--text-muted)' }}>{new Date(o.thoigiandat).toLocaleDateString('vi-VN')}</td>
-                        <td>
-                          <select
-                            className="form-control"
-                            style={{ padding: '4px 8px', fontSize: 12, minWidth: 130 }}
-                            value={o.trangthai || 'Đã đặt'}
-                            onChange={e => handleUpdateStatus(o.id_donhang, e.target.value)}
-                            disabled={o.trangthai === 'Đã hủy' || o.trangthai === 'Chờ duyệt hủy'}
-                          >
-                            {ORDER_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
-                          </select>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </>
-        )}
+        {tab === 'orders' && (() => {
+          const STATUS_ORDER = ['Đã đặt','Đang xử lý','Đang giao','Đã giao','Chờ duyệt hủy','Đã hủy'];
+          const ORDER_SORT_OPTIONS = [
+            { value: 'id_desc',      label: '📋 Mã Mới Nhất' },
+            { value: 'id_asc',       label: '📋 Mã Cũ Nhất' },
+            { value: 'date_desc',    label: '📅 Ngày Mới → Cũ' },
+            { value: 'date_asc',     label: '📅 Ngày Cũ → Mới' },
+            { value: 'price_desc',   label: '💰 Giá Cao → Thấp' },
+            { value: 'price_asc',    label: '💰 Giá Thấp → Cao' },
+            { value: 'status_asc',   label: '🔖 Theo Trạng Thái' },
+            { value: 'customer_az',  label: '👤 Khách A → Z' },
+          ];
+          const sortedOrders = [...orders].sort((a, b) => {
+            switch (orderSort) {
+              case 'id_asc':      return a.id_donhang - b.id_donhang;
+              case 'id_desc':     return b.id_donhang - a.id_donhang;
+              case 'date_asc':    return new Date(a.thoigiandat) - new Date(b.thoigiandat);
+              case 'date_desc':   return new Date(b.thoigiandat) - new Date(a.thoigiandat);
+              case 'price_asc':   return (a.tongtien || 0) - (b.tongtien || 0);
+              case 'price_desc':  return (b.tongtien || 0) - (a.tongtien || 0);
+              case 'status_asc':  return STATUS_ORDER.indexOf(a.trangthai) - STATUS_ORDER.indexOf(b.trangthai);
+              case 'customer_az': return (a.hoten || '').localeCompare(b.hoten || '', 'vi');
+              default: return 0;
+            }
+          });
+          return (
+            <>
+              <div className="admin-header"><h1>Quản Lý Đơn Hàng</h1><p>{orders.length} đơn hàng</p></div>
+              <SortBar options={ORDER_SORT_OPTIONS} value={orderSort} onChange={setOrderSort} />
+              <div className="table-wrapper">
+                <table className="data-table">
+                  <thead><tr><th>ID</th><th>Khách Hàng</th><th>SĐT</th><th>Tổng Tiền</th><th>Trạng Thái</th><th>Ngày Đặt</th><th>Thao Tác</th></tr></thead>
+                  <tbody>
+                    {sortedOrders.map(o => {
+                      const ss = STATUS_STYLE[o.trangthai] || { bg: '#f5f5f5', color: '#616161' };
+                      return (
+                        <tr
+                          key={o.id_donhang}
+                          style={{ cursor: 'pointer' }}
+                          onClick={() => setViewOrder(o)}
+                        >
+                          <td>#{o.id_donhang}</td>
+                          <td style={{ fontWeight: 600 }}>{o.hoten}</td>
+                          <td>{o.sdt}</td>
+                          <td style={{ color: 'var(--primary)', fontWeight: 700 }}>{formatPrice(o.tongtien)}</td>
+                          <td>
+                            <span style={{
+                              display: 'inline-block', padding: '3px 10px',
+                              borderRadius: 20, fontSize: 12, fontWeight: 700,
+                              background: ss.bg, color: ss.color
+                            }}>{o.trangthai || 'Đã đặt'}</span>
+                          </td>
+                          <td style={{ color: 'var(--text-muted)' }}>{formatDateTime(o.thoigiandat)}</td>
+                          <td onClick={e => e.stopPropagation()}>
+                            <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                              <button
+                                className="btn btn-outline btn-sm"
+                                style={{ padding: '4px 10px', fontSize: 12 }}
+                                onClick={e => { e.stopPropagation(); setViewOrder(o); }}
+                                title="Xem chi tiết"
+                              >
+                                👁️ Xem
+                              </button>
+                              <select
+                                className="form-control"
+                                style={{ padding: '4px 8px', fontSize: 12, minWidth: 120 }}
+                                value={o.trangthai || 'Đã đặt'}
+                                onChange={e => handleUpdateStatus(o.id_donhang, e.target.value)}
+                                disabled={o.trangthai === 'Đã hủy' || o.trangthai === 'Chờ duyệt hủy'}
+                              >
+                                {ORDER_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
+                              </select>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </>
+          );
+        })()}
 
         {/* Cancel Requests Tab */}
         {tab === 'cancel' && (
@@ -605,6 +718,163 @@ export default function AdminPage() {
           </div>
         </div>
       )}
+
+      {/* ── Order Detail Modal ───────────────────────────────────── */}
+      {viewOrder && (() => {
+        const o = viewOrder;
+        const items = o.items || [];
+        const ss = STATUS_STYLE[o.trangthai] || { bg: '#f5f5f5', color: '#616161' };
+        return (
+          <div className="modal-overlay" onClick={() => setViewOrder(null)} style={{ zIndex: 2000 }}>
+            <div
+              className="modal"
+              style={{ maxWidth: 680, borderRadius: 20, padding: 0, maxHeight: '92vh', display: 'flex', flexDirection: 'column' }}
+              onClick={e => e.stopPropagation()}
+            >
+              {/* ── Header ── */}
+              <div style={{
+                padding: '20px 28px', borderBottom: '1px solid var(--border)',
+                display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexShrink: 0
+              }}>
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                    <h3 style={{ margin: 0, fontSize: 20, color: 'var(--secondary)', fontFamily: 'Playfair Display,serif' }}>
+                      📦 Đơn Hàng #{o.id_donhang}
+                    </h3>
+                    <span style={{
+                      padding: '4px 14px', borderRadius: 20, fontSize: 12, fontWeight: 700,
+                      background: ss.bg, color: ss.color
+                    }}>{o.trangthai || 'Đã đặt'}</span>
+                  </div>
+                  <div style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 6 }}>
+                    📅 Đặt lúc: <strong>{formatDateTime(o.thoigiandat)}</strong>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setViewOrder(null)}
+                  style={{ background: 'none', border: 'none', fontSize: 22, cursor: 'pointer', color: 'var(--text-muted)', lineHeight: 1 }}
+                >✕</button>
+              </div>
+
+              {/* ── Body (scrollable) ── */}
+              <div style={{ overflowY: 'auto', flex: 1, padding: '24px 28px', display: 'flex', flexDirection: 'column', gap: 20 }}>
+
+                {/* Thông tin khách hàng */}
+                <div style={{ background: 'var(--bg)', borderRadius: 14, padding: '18px 20px', border: '1px solid var(--border)' }}>
+                  <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--secondary)', marginBottom: 12, textTransform: 'uppercase', letterSpacing: 1 }}>
+                    👤 Thông Tin Khách Hàng
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px 24px', fontSize: 14 }}>
+                    <div><span style={{ color: 'var(--text-muted)' }}>Họ tên:</span> <strong>{o.hoten}</strong></div>
+                    <div><span style={{ color: 'var(--text-muted)' }}>SĐT:</span> <strong>{o.sdt}</strong></div>
+                    {o.email && <div><span style={{ color: 'var(--text-muted)' }}>Email:</span> <strong>{o.email}</strong></div>}
+                    <div><span style={{ color: 'var(--text-muted)' }}>Thanh toán:</span> <strong>{o.phuongthuc}</strong></div>
+                    <div style={{ gridColumn: '1 / -1' }}>
+                      <span style={{ color: 'var(--text-muted)' }}>📍 Địa chỉ:</span> <strong>{o.diachi}</strong>
+                    </div>
+                    {o.ghichu && (
+                      <div style={{ gridColumn: '1 / -1' }}>
+                        <span style={{ color: 'var(--text-muted)' }}>📝 Ghi chú:</span> <em style={{ color: 'var(--text)' }}>{o.ghichu}</em>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Danh sách sản phẩm */}
+                <div>
+                  <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--secondary)', marginBottom: 12, textTransform: 'uppercase', letterSpacing: 1 }}>
+                    🛍️ Sản Phẩm Đã Đặt ({items.length})
+                  </div>
+                  {items.length === 0 ? (
+                    <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-muted)', background: 'var(--bg)', borderRadius: 12, border: '1px dashed var(--border)' }}>
+                      Không có thông tin sản phẩm.
+                    </div>
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                      {items.map((item, idx) => (
+                        <div key={`${item.id_sp}-${idx}`} style={{
+                          display: 'grid', gridTemplateColumns: '90px 1fr auto',
+                          gap: 14, background: 'var(--bg)', borderRadius: 12,
+                          padding: '14px 16px', border: '1px solid var(--border)',
+                          alignItems: 'center'
+                        }}>
+                          {/* Ảnh */}
+                          <img
+                            src={item.anh_sp ? `/uploads/${item.anh_sp}` : 'https://placehold.co/90x90/f0ddd0/c8956c?text=Bag'}
+                            alt={item.ten_sp}
+                            onError={e => { e.target.src = 'https://placehold.co/90x90/f0ddd0/c8956c?text=Bag'; }}
+                            style={{ width: 90, height: 90, objectFit: 'cover', borderRadius: 10, border: '1px solid var(--border)', background: '#fff' }}
+                          />
+                          {/* Tên + mô tả */}
+                          <div>
+                            <div style={{ fontWeight: 700, fontSize: 15, color: 'var(--secondary)', marginBottom: 4 }}>{item.ten_sp}</div>
+                            {item.mota_sp && (
+                              <div style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.5,
+                                display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                                {item.mota_sp}
+                              </div>
+                            )}
+                            <div style={{ marginTop: 6, fontSize: 12, color: 'var(--text-muted)' }}>
+                              Mã SP: <strong>#{item.id_sp}</strong>
+                            </div>
+                          </div>
+                          {/* Giá + số lượng */}
+                          <div style={{ textAlign: 'right', minWidth: 110 }}>
+                            <div style={{ fontSize: 15, fontWeight: 800, color: 'var(--primary-dark)' }}>{formatPrice(item.gia_sp)}</div>
+                            <div style={{ fontSize: 13, color: 'var(--text-muted)', margin: '4px 0' }}>Số lượng: <strong>x{item.soluong}</strong></div>
+                            <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--secondary)', borderTop: '1px dashed var(--border)', paddingTop: 6 }}>
+                              = {formatPrice((item.gia_sp || 0) * (item.soluong || 1))}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Lý do hủy (nếu có) */}
+                {o.lydo_huy && (
+                  <div style={{ background: '#fff3e0', borderLeft: '4px solid #ff9800', borderRadius: 10, padding: '12px 16px', fontSize: 13 }}>
+                    <strong style={{ color: '#e65100' }}>📝 Lý do yêu cầu hủy:</strong>
+                    <span style={{ color: '#5d4037', marginLeft: 8 }}>{o.lydo_huy}</span>
+                  </div>
+                )}
+              </div>
+
+              {/* ── Footer ── */}
+              <div style={{
+                padding: '16px 28px', borderTop: '1px solid var(--border)',
+                background: 'var(--bg)', borderRadius: '0 0 20px 20px',
+                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                flexWrap: 'wrap', gap: 12, flexShrink: 0
+              }}>
+                <div style={{ fontSize: 16 }}>
+                  <span style={{ color: 'var(--text-muted)' }}>Tổng cộng:</span>
+                  <span style={{ fontWeight: 800, fontSize: 22, color: 'var(--primary-dark)', marginLeft: 10 }}>
+                    {formatPrice(o.tongtien)}
+                  </span>
+                </div>
+                <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+                  <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>Cập nhật trạng thái:</span>
+                  <select
+                    className="form-control"
+                    style={{ padding: '6px 10px', fontSize: 13, minWidth: 150 }}
+                    value={o.trangthai || 'Đã đặt'}
+                    onChange={async e => {
+                      await handleUpdateStatus(o.id_donhang, e.target.value);
+                      setViewOrder({ ...o, trangthai: e.target.value });
+                    }}
+                    disabled={o.trangthai === 'Đã hủy' || o.trangthai === 'Chờ duyệt hủy'}
+                  >
+                    {ORDER_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                  <button className="btn btn-outline" onClick={() => setViewOrder(null)}>Đóng</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }

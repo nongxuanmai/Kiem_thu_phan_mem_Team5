@@ -39,6 +39,26 @@ class LoginRequest(BaseModel):
     matkhau: str
 
 
+class ChangePasswordRequest(BaseModel):
+    matkhau_cu: str
+    matkhau_moi: str
+
+
+class SendOtpRequest(BaseModel):
+    email: str
+
+
+class ResetPasswordRequest(BaseModel):
+    email: str
+    otp: str
+    matkhau_moi: str
+
+
+class DirectResetPasswordRequest(BaseModel):
+    matkhau_moi: str
+    taikhoan: Optional[str] = None
+
+
 class TokenResponse(BaseModel):
     access_token: str
     token_type: str
@@ -111,6 +131,7 @@ class GioHangOut(BaseModel):
     ten_sp: str
     gia_sp: float
     anh_sp: Optional[str] = None
+    mota_sp: Optional[str] = None
     soluong: int
 
 

@@ -15,7 +15,13 @@ const RULES = {
   },
   matkhau: (v) => {
     if (!v) return 'Mật khẩu không được để trống.';
-    if (v.length < 6) return 'Mật khẩu phải có ít nhất 6 ký tự.';
+    if (v.length < 6) return 'Mật khẩu quá ngắn! Phải có ít nhất 6 ký tự.';
+    if (!/^(?=.*[a-zA-Z])(?=.*\d)/.test(v)) return 'Mật khẩu quá yếu! Nên bao gồm cả chữ cái và chữ số (ví dụ: Fashion123).';
+    return '';
+  },
+  nhaplai_matkhau: (v, form) => {
+    if (!v) return 'Vui lòng nhập lại mật khẩu để xác nhận.';
+    if (v !== form?.matkhau) return '❌ Mật khẩu nhập lại không khớp! Vui lòng kiểm tra lại.';
     return '';
   },
   hoten: (v) => {
@@ -67,15 +73,17 @@ function inputStyle(hasError) {
 
 export default function RegisterPage() {
   const [form, setForm] = useState({
-    taikhoan: '', matkhau: '', hoten: '',
+    taikhoan: '', matkhau: '', nhaplai_matkhau: '', hoten: '',
     email: '', sdt: '', gioitinh: '', namsinh: ''
   });
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [touched, setTouched] = useState({});
   const [loading, setLoading] = useState(false);
   const [serverError, setServerError] = useState('');
   const navigate = useNavigate();
 
-  const getError = (field) => (touched[field] ? RULES[field](form[field]) : '');
+  const getError = (field) => (touched[field] ? RULES[field](form[field], form) : '');
 
   const handleChange = (field, value) => {
     setForm(prev => ({ ...prev, [field]: value }));
@@ -88,7 +96,7 @@ export default function RegisterPage() {
 
   // Kiểm tra toàn bộ form hợp lệ
   const isFormValid = () =>
-    Object.keys(RULES).every(f => !RULES[f](form[f]));
+    Object.keys(RULES).every(f => !RULES[f](form[f], form));
 
   const handleSubmit = async e => {
     e.preventDefault();
@@ -100,8 +108,9 @@ export default function RegisterPage() {
     setLoading(true);
     setServerError('');
     try {
+      const { nhaplai_matkhau, ...registerData } = form;
       await authAPI.register({
-        ...form,
+        ...registerData,
         namsinh: form.namsinh ? Number(form.namsinh) : null
       });
       navigate('/login');
@@ -114,7 +123,7 @@ export default function RegisterPage() {
 
   return (
     <div className="auth-page" style={{ padding: '100px 0 40px' }}>
-      <div className="auth-card" style={{ maxWidth: 540 }}>
+      <div className="auth-card" style={{ maxWidth: 560 }}>
         <div className="auth-logo">
           <div style={{ fontFamily: 'Playfair Display,serif', fontSize: 30, color: 'var(--primary)' }}>
             FashionBag
@@ -136,41 +145,93 @@ export default function RegisterPage() {
 
         <form onSubmit={handleSubmit} noValidate>
 
-          {/* Row: Tài khoản + Mật khẩu */}
+          {/* Tài khoản */}
+          <div className="form-group">
+            <label className="form-label" htmlFor="reg-taikhoan">
+              Tài Khoản <span style={{ color: '#e53935' }}>*</span>
+            </label>
+            <input
+              id="reg-taikhoan"
+              className="form-control"
+              placeholder="4–20 ký tự, không dấu cách"
+              value={form.taikhoan}
+              style={inputStyle(!!getError('taikhoan'))}
+              onChange={e => handleChange('taikhoan', e.target.value)}
+              onBlur={() => handleBlur('taikhoan')}
+              autoComplete="username"
+              maxLength={20}
+            />
+            <FieldError msg={getError('taikhoan')} />
+          </div>
+
+          {/* Row: Mật khẩu + Nhập lại Mật khẩu */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-            <div className="form-group">
-              <label className="form-label" htmlFor="reg-taikhoan">
-                Tài Khoản <span style={{ color: '#e53935' }}>*</span>
-              </label>
-              <input
-                id="reg-taikhoan"
-                className="form-control"
-                placeholder="4–20 ký tự, không dấu cách"
-                value={form.taikhoan}
-                style={inputStyle(!!getError('taikhoan'))}
-                onChange={e => handleChange('taikhoan', e.target.value)}
-                onBlur={() => handleBlur('taikhoan')}
-                autoComplete="username"
-                maxLength={20}
-              />
-              <FieldError msg={getError('taikhoan')} />
-            </div>
+            {/* Mật khẩu */}
             <div className="form-group">
               <label className="form-label" htmlFor="reg-matkhau">
                 Mật Khẩu <span style={{ color: '#e53935' }}>*</span>
               </label>
-              <input
-                id="reg-matkhau"
-                type="password"
-                className="form-control"
-                placeholder="Ít nhất 6 ký tự"
-                value={form.matkhau}
-                style={inputStyle(!!getError('matkhau'))}
-                onChange={e => handleChange('matkhau', e.target.value)}
-                onBlur={() => handleBlur('matkhau')}
-                autoComplete="new-password"
-              />
+              <div style={{ position: 'relative' }}>
+                <input
+                  id="reg-matkhau"
+                  type={showPassword ? 'text' : 'password'}
+                  className="form-control"
+                  placeholder="Bao gồm chữ & số"
+                  value={form.matkhau}
+                  style={{ ...inputStyle(!!getError('matkhau')), paddingRight: 40 }}
+                  onChange={e => handleChange('matkhau', e.target.value)}
+                  onBlur={() => handleBlur('matkhau')}
+                  autoComplete="new-password"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  title={showPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
+                  style={{
+                    position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)',
+                    background: 'none', border: 'none', cursor: 'pointer', fontSize: 16,
+                    padding: 4, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    color: 'var(--text-muted)'
+                  }}
+                >
+                  {showPassword ? '🙈' : '👁️'}
+                </button>
+              </div>
               <FieldError msg={getError('matkhau')} />
+            </div>
+
+            {/* Nhập lại Mật khẩu */}
+            <div className="form-group">
+              <label className="form-label" htmlFor="reg-nhaplai-matkhau">
+                Nhập Lại Mật Khẩu <span style={{ color: '#e53935' }}>*</span>
+              </label>
+              <div style={{ position: 'relative' }}>
+                <input
+                  id="reg-nhaplai-matkhau"
+                  type={showConfirmPassword ? 'text' : 'password'}
+                  className="form-control"
+                  placeholder="Xác nhận mật khẩu"
+                  value={form.nhaplai_matkhau}
+                  style={{ ...inputStyle(!!getError('nhaplai_matkhau')), paddingRight: 40 }}
+                  onChange={e => handleChange('nhaplai_matkhau', e.target.value)}
+                  onBlur={() => handleBlur('nhaplai_matkhau')}
+                  autoComplete="new-password"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  title={showConfirmPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
+                  style={{
+                    position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)',
+                    background: 'none', border: 'none', cursor: 'pointer', fontSize: 16,
+                    padding: 4, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    color: 'var(--text-muted)'
+                  }}
+                >
+                  {showConfirmPassword ? '🙈' : '👁️'}
+                </button>
+              </div>
+              <FieldError msg={getError('nhaplai_matkhau')} />
             </div>
           </div>
 
