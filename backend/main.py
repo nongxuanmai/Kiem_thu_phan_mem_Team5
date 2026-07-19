@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from database import init_database
 from routers import auth_router, sanpham_router, danhmuc_router, donhang_router
+from routers import test_router
 import os
 
 # Khởi tạo database khi start server
@@ -35,6 +36,7 @@ app.include_router(auth_router.router)
 app.include_router(sanpham_router.router)
 app.include_router(danhmuc_router.router)
 app.include_router(donhang_router.router)
+app.include_router(test_router.router)  # router hỗ trợ kiểm thử
 
 
 @app.get("/")

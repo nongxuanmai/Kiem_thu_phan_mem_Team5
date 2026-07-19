@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useNavigate } from 'react-router-dom';
 import { authAPI } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -29,7 +29,7 @@ function FieldError({ msg }) {
 }
 
 export default function ProfilePage() {
-  const { user, login } = useAuth();
+  const { user, login, logout } = useAuth();
   const [form, setForm] = useState({ hoten: '', gioitinh: '', sdt: '', email: '', namsinh: '' });
   const [touched, setTouched] = useState({});
   const [loading, setLoading] = useState(true);
@@ -37,7 +37,8 @@ export default function ProfilePage() {
   const [msg, setMsg] = useState('');
   const [showConfirm, setShowConfirm] = useState(false);
 
-  // State phần Đổi mật khẩu
+  // State modal đổi mật khẩu
+  const [showPwdModal, setShowPwdModal] = useState(false);
   const [pwdForm, setPwdForm] = useState({ matkhau_cu: '', matkhau_moi: '', nhaplai_matkhau_moi: '' });
   const [pwdTouched, setPwdTouched] = useState({});
   const [showOldPwd, setShowOldPwd] = useState(false);
@@ -46,6 +47,13 @@ export default function ProfilePage() {
   const [showPwdConfirmModal, setShowPwdConfirmModal] = useState(false);
   const [pwdSaving, setPwdSaving] = useState(false);
   const [pwdMsg, setPwdMsg] = useState({ type: '', text: '' });
+
+  // State xóa tài khoản
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteMsg, setDeleteMsg] = useState('');
+
+  const navigate = useNavigate();
 
   if (!user) return <Navigate to="/login" />;
 
@@ -80,7 +88,6 @@ export default function ProfilePage() {
 
   const getError = (field) => (touched[field] && RULES[field] ? RULES[field](form[field]) : '');
 
-  // Validation Đổi mật khẩu
   const getPwdError = (field) => {
     if (!pwdTouched[field]) return '';
     const v = pwdForm[field];
@@ -100,7 +107,6 @@ export default function ProfilePage() {
     return '';
   };
 
-  // Kiểm tra trước khi mở popup xác nhận cập nhật thông tin cá nhân
   const handleSubmitInfo = (e) => {
     e.preventDefault();
     setTouched({ sdt: true, email: true });
@@ -112,7 +118,6 @@ export default function ProfilePage() {
     setShowConfirm(true);
   };
 
-  // Thực hiện lưu thông tin cá nhân sau xác nhận
   const executeSaveInfo = async () => {
     setShowConfirm(false);
     setSaving(true);
@@ -128,12 +133,41 @@ export default function ProfilePage() {
     }
   };
 
-  // Kiểm tra và mở popup xác nhận Đổi mật khẩu
+  const handleDeleteAccount = async () => {
+    setDeleting(true);
+    setDeleteMsg('');
+    try {
+      await authAPI.deleteMe();
+      setDeleteMsg('__success__');
+      setTimeout(() => {
+        logout();
+        navigate('/login', { replace: true });
+      }, 2000);
+    } catch {
+      setDeleteMsg('Xóa tài khoản thất bại. Vui lòng thử lại sau.');
+      setDeleting(false);
+    }
+  };
+
+  const openPwdModal = () => {
+    setPwdForm({ matkhau_cu: '', matkhau_moi: '', nhaplai_matkhau_moi: '' });
+    setPwdTouched({});
+    setPwdMsg({ type: '', text: '' });
+    setShowOldPwd(false);
+    setShowNewPwd(false);
+    setShowConfirmNewPwd(false);
+    setShowPwdModal(true);
+  };
+
+  const closePwdModal = () => {
+    setShowPwdModal(false);
+    setPwdMsg({ type: '', text: '' });
+  };
+
   const handlePreChangePassword = (e) => {
     e.preventDefault();
     setPwdTouched({ matkhau_cu: true, matkhau_moi: true, nhaplai_matkhau_moi: true });
     setPwdMsg({ type: '', text: '' });
-
     if (
       !pwdForm.matkhau_cu ||
       !pwdForm.matkhau_moi ||
@@ -145,16 +179,13 @@ export default function ProfilePage() {
       setPwdMsg({ type: 'error', text: 'Vui lòng kiểm tra và sửa các thông tin mật khẩu bị lỗi bên dưới!' });
       return;
     }
-
     setShowPwdConfirmModal(true);
   };
 
-  // Thực hiện đổi mật khẩu sau khi bấm Xác nhận trong Modal
   const executeChangePassword = async () => {
     setShowPwdConfirmModal(false);
     setPwdSaving(true);
     setPwdMsg({ type: '', text: '' });
-
     try {
       await authAPI.changePassword({
         matkhau_cu: pwdForm.matkhau_cu,
@@ -180,7 +211,7 @@ export default function ProfilePage() {
           <p style={{ color: 'var(--text-muted)', marginBottom: 36 }}>Cập nhật thông tin cá nhân và quản lý mật khẩu tài khoản</p>
 
           {/* Card Thông tin cá nhân */}
-          <div className="card" style={{ padding: 36, marginBottom: 32 }}>
+          <div className="card" style={{ padding: 36 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 20, marginBottom: 32, padding: '20px 24px', background: 'var(--bg)', borderRadius: 14 }}>
               <div style={{ width: 60, height: 60, borderRadius: '50%', background: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24, color: '#fff' }}>
                 👤
@@ -250,139 +281,33 @@ export default function ProfilePage() {
                   <input type="number" className="form-control" placeholder="2000" value={form.namsinh} onChange={e => setForm({ ...form, namsinh: e.target.value })} />
                 </div>
               </div>
-              <button type="submit" className="btn btn-primary" disabled={saving} style={{ justifyContent: 'center', width: '100%' }}>
+
+              <button type="submit" className="btn btn-primary" id="btn-save-profile" disabled={saving} style={{ justifyContent: 'center', width: '100%' }}>
                 {saving ? 'Đang lưu...' : 'Lưu Thay Đổi Thông Tin'}
               </button>
             </form>
-          </div>
 
-          {/* Card Đổi Mật Khẩu */}
-          <div className="card" style={{ padding: 36 }}>
-            <h3 style={{ fontSize: 18, color: 'var(--secondary)', marginBottom: 8, fontFamily: 'Playfair Display,serif' }}>
-              🔒 Đổi Mật Khẩu
-            </h3>
-            <p style={{ color: 'var(--text-muted)', fontSize: 13, marginBottom: 20 }}>
-              Để bảo mật tài khoản, không nên chia sẻ mật khẩu cho người khác.
-            </p>
-
-            {pwdMsg.text && (
-              <div style={{
-                background: pwdMsg.type === 'success' ? '#d4edda' : '#ffeaea',
-                border: `1px solid ${pwdMsg.type === 'success' ? 'var(--success)' : 'var(--error)'}`,
-                borderRadius: 10, padding: '12px 16px', marginBottom: 20,
-                color: pwdMsg.type === 'success' ? 'var(--success)' : 'var(--error)',
-                fontWeight: 600, fontSize: 14
-              }}>
-                {pwdMsg.text}
-              </div>
-            )}
-
-            <form onSubmit={handlePreChangePassword} noValidate>
-              {/* Mật khẩu cũ */}
-              <div className="form-group">
-                <label className="form-label">
-                  Mật Khẩu Hiện Tại <span style={{ color: '#e53935' }}>*</span>
-                </label>
-                <div style={{ position: 'relative' }}>
-                  <input
-                    type={showOldPwd ? 'text' : 'password'}
-                    className="form-control"
-                    placeholder="Nhập mật khẩu hiện tại của bạn"
-                    value={pwdForm.matkhau_cu}
-                    onChange={e => setPwdForm({ ...pwdForm, matkhau_cu: e.target.value })}
-                    onBlur={() => setPwdTouched(t => ({ ...t, matkhau_cu: true }))}
-                    style={{ paddingRight: 40 }}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowOldPwd(!showOldPwd)}
-                    title={showOldPwd ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
-                    style={{
-                      position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)',
-                      background: 'none', border: 'none', cursor: 'pointer', fontSize: 16,
-                      color: 'var(--text-muted)'
-                    }}
-                  >
-                    {showOldPwd ? '🙈' : '👁️'}
-                  </button>
-                </div>
-                <FieldError msg={getPwdError('matkhau_cu')} />
-              </div>
-
-              {/* Grid: Mật khẩu mới & Xác thực lại */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-                {/* Mật khẩu mới */}
-                <div className="form-group">
-                  <label className="form-label">
-                    Mật Khẩu Mới <span style={{ color: '#e53935' }}>*</span>
-                  </label>
-                  <div style={{ position: 'relative' }}>
-                    <input
-                      type={showNewPwd ? 'text' : 'password'}
-                      className="form-control"
-                      placeholder="Ít nhất 6 ký tự, gồm chữ & số"
-                      value={pwdForm.matkhau_moi}
-                      onChange={e => setPwdForm({ ...pwdForm, matkhau_moi: e.target.value })}
-                      onBlur={() => setPwdTouched(t => ({ ...t, matkhau_moi: true }))}
-                      style={{ paddingRight: 40 }}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowNewPwd(!showNewPwd)}
-                      title={showNewPwd ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
-                      style={{
-                        position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)',
-                        background: 'none', border: 'none', cursor: 'pointer', fontSize: 16,
-                        color: 'var(--text-muted)'
-                      }}
-                    >
-                      {showNewPwd ? '🙈' : '👁️'}
-                    </button>
-                  </div>
-                  <FieldError msg={getPwdError('matkhau_moi')} />
-                </div>
-
-                {/* Xác thực lại mật khẩu mới */}
-                <div className="form-group">
-                  <label className="form-label">
-                    Xác Thực Mật Khẩu Mới <span style={{ color: '#e53935' }}>*</span>
-                  </label>
-                  <div style={{ position: 'relative' }}>
-                    <input
-                      type={showConfirmNewPwd ? 'text' : 'password'}
-                      className="form-control"
-                      placeholder="Nhập lại mật khẩu mới"
-                      value={pwdForm.nhaplai_matkhau_moi}
-                      onChange={e => setPwdForm({ ...pwdForm, nhaplai_matkhau_moi: e.target.value })}
-                      onBlur={() => setPwdTouched(t => ({ ...t, nhaplai_matkhau_moi: true }))}
-                      style={{ paddingRight: 40 }}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowConfirmNewPwd(!showConfirmNewPwd)}
-                      title={showConfirmNewPwd ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
-                      style={{
-                        position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)',
-                        background: 'none', border: 'none', cursor: 'pointer', fontSize: 16,
-                        color: 'var(--text-muted)'
-                      }}
-                    >
-                      {showConfirmNewPwd ? '🙈' : '👁️'}
-                    </button>
-                  </div>
-                  <FieldError msg={getPwdError('nhaplai_matkhau_moi')} />
-                </div>
-              </div>
-
+            {/* Nút Đổi Mật Khẩu & Xóa Tài Khoản */}
+            <div style={{ marginTop: 12, borderTop: '1px solid var(--border)', paddingTop: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
               <button
-                type="submit"
-                className="btn btn-primary"
-                disabled={pwdSaving}
-                style={{ justifyContent: 'center', width: '100%', marginTop: 8 }}
+                id="btn-open-change-password"
+                type="button"
+                onClick={openPwdModal}
+                className="btn btn-outline"
+                style={{ width: '100%', justifyContent: 'center', gap: 8 }}
               >
-                {pwdSaving ? 'Đang đổi mật khẩu...' : '🔑 Đổi Mật Khẩu'}
+                🔒 Đổi Mật Khẩu
               </button>
-            </form>
+              <button
+                id="btn-open-delete-account"
+                type="button"
+                onClick={() => { setDeleteMsg(''); setShowDeleteModal(true); }}
+                className="btn"
+                style={{ width: '100%', justifyContent: 'center', gap: 8, background: 'transparent', border: '1px solid #c62828', color: '#c62828' }}
+              >
+                🗑️ Xóa Tài Khoản
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -390,26 +315,15 @@ export default function ProfilePage() {
       {/* Modal 1: Xác nhận Thay Đổi Thông Tin Cá Nhân */}
       {showConfirm && (
         <div className="modal-overlay" onClick={() => setShowConfirm(false)}>
-          <div
-            className="modal"
-            style={{ maxWidth: 460, borderRadius: 20, padding: 0 }}
-            onClick={e => e.stopPropagation()}
-          >
+          <div className="modal" style={{ maxWidth: 460, borderRadius: 20, padding: 0 }} onClick={e => e.stopPropagation()}>
             <div className="modal-header" style={{ padding: '20px 24px' }}>
               <h3 style={{ fontSize: 18, color: 'var(--secondary)' }}>📝 Xác Nhận Thay Đổi Thông Tin</h3>
-              <button
-                className="cart-close"
-                onClick={() => setShowConfirm(false)}
-                style={{ width: 32, height: 32, fontSize: 16 }}
-              >
-                ✕
-              </button>
+              <button className="cart-close" onClick={() => setShowConfirm(false)} style={{ width: 32, height: 32, fontSize: 16 }}>✕</button>
             </div>
             <div className="modal-body" style={{ padding: '20px 24px' }}>
               <p style={{ fontSize: 14, color: 'var(--text-muted)', marginBottom: 16 }}>
                 Bạn có chắc chắn muốn cập nhật thông tin cá nhân với các nội dung sau?
               </p>
-
               <div style={{ background: 'var(--bg)', padding: '16px', borderRadius: 12, fontSize: 14, display: 'flex', flexDirection: 'column', gap: 8, border: '1px solid var(--border)' }}>
                 <div><strong>Họ tên:</strong> {form.hoten || '(Chưa nhập)'}</div>
                 <div><strong>Email:</strong> {form.email || '(Chưa nhập)'}</div>
@@ -418,49 +332,126 @@ export default function ProfilePage() {
                 <div><strong>Năm sinh:</strong> {form.namsinh || '(Chưa nhập)'}</div>
               </div>
             </div>
-            <div
-              className="modal-footer"
-              style={{
-                padding: '16px 24px', background: 'var(--bg)',
-                borderRadius: '0 0 20px 20px', display: 'flex', gap: 12, justifyContent: 'flex-end'
-              }}
-            >
-              <button
-                className="btn btn-outline"
-                onClick={() => setShowConfirm(false)}
-                style={{ padding: '8px 20px', fontSize: 14 }}
-              >
-                Hủy
-              </button>
-              <button
-                className="btn btn-primary"
-                onClick={executeSaveInfo}
-                style={{ padding: '8px 20px', fontSize: 14 }}
-              >
-                ✓ Xác Nhận Lưu
-              </button>
+            <div className="modal-footer" style={{ padding: '16px 24px', background: 'var(--bg)', borderRadius: '0 0 20px 20px', display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
+              <button className="btn btn-outline" onClick={() => setShowConfirm(false)} style={{ padding: '8px 20px', fontSize: 14 }}>Hủy</button>
+              <button className="btn btn-primary" onClick={executeSaveInfo} style={{ padding: '8px 20px', fontSize: 14 }}>✓ Xác Nhận Lưu</button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Modal 2: Xác Nhận Muốn Đổi Mật Khẩu */}
+      {/* Modal Đổi Mật Khẩu */}
+      {showPwdModal && (
+        <div className="modal-overlay" onClick={closePwdModal}>
+          <div className="modal" style={{ maxWidth: 520, borderRadius: 20, padding: 0 }} onClick={e => e.stopPropagation()}>
+            <div className="modal-header" style={{ padding: '20px 24px' }}>
+              <h3 style={{ fontSize: 18, color: 'var(--secondary)' }}>🔒 Đổi Mật Khẩu</h3>
+              <button className="cart-close" onClick={closePwdModal} style={{ width: 32, height: 32, fontSize: 16 }}>✕</button>
+            </div>
+            <div className="modal-body" style={{ padding: '20px 24px' }}>
+              <p style={{ color: 'var(--text-muted)', fontSize: 13, marginBottom: 20 }}>
+                Để bảo mật tài khoản, không nên chia sẻ mật khẩu cho người khác.
+              </p>
+
+              {pwdMsg.text && (
+                <div style={{
+                  background: pwdMsg.type === 'success' ? '#d4edda' : '#ffeaea',
+                  border: `1px solid ${pwdMsg.type === 'success' ? 'var(--success)' : 'var(--error)'}`,
+                  borderRadius: 10, padding: '12px 16px', marginBottom: 20,
+                  color: pwdMsg.type === 'success' ? 'var(--success)' : 'var(--error)',
+                  fontWeight: 600, fontSize: 14
+                }}>
+                  {pwdMsg.text}
+                </div>
+              )}
+
+              <form id="form-change-password" onSubmit={handlePreChangePassword} noValidate>
+                {/* Mật khẩu cũ */}
+                <div className="form-group">
+                  <label className="form-label">Mật Khẩu Hiện Tại <span style={{ color: '#e53935' }}>*</span></label>
+                  <div style={{ position: 'relative' }}>
+                    <input
+                      type={showOldPwd ? 'text' : 'password'}
+                      className="form-control"
+                      placeholder="Nhập mật khẩu hiện tại của bạn"
+                      value={pwdForm.matkhau_cu}
+                      onChange={e => setPwdForm({ ...pwdForm, matkhau_cu: e.target.value })}
+                      onBlur={() => setPwdTouched(t => ({ ...t, matkhau_cu: true }))}
+                      style={{ paddingRight: 40 }}
+                    />
+                    <button type="button" onClick={() => setShowOldPwd(!showOldPwd)} title={showOldPwd ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
+                      style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 16, color: 'var(--text-muted)' }}>
+                      {showOldPwd ? '🙈' : '👁️'}
+                    </button>
+                  </div>
+                  <FieldError msg={getPwdError('matkhau_cu')} />
+                </div>
+
+                {/* Mật khẩu mới & Xác thực */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+                  <div className="form-group">
+                    <label className="form-label">Mật Khẩu Mới <span style={{ color: '#e53935' }}>*</span></label>
+                    <div style={{ position: 'relative' }}>
+                      <input
+                        type={showNewPwd ? 'text' : 'password'}
+                        className="form-control"
+                        placeholder="Ít nhất 6 ký tự, gồm chữ & số"
+                        value={pwdForm.matkhau_moi}
+                        onChange={e => setPwdForm({ ...pwdForm, matkhau_moi: e.target.value })}
+                        onBlur={() => setPwdTouched(t => ({ ...t, matkhau_moi: true }))}
+                        style={{ paddingRight: 40 }}
+                      />
+                      <button type="button" onClick={() => setShowNewPwd(!showNewPwd)} title={showNewPwd ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
+                        style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 16, color: 'var(--text-muted)' }}>
+                        {showNewPwd ? '🙈' : '👁️'}
+                      </button>
+                    </div>
+                    <FieldError msg={getPwdError('matkhau_moi')} />
+                  </div>
+
+                  <div className="form-group">
+                    <label className="form-label">Xác Thực Mật Khẩu Mới <span style={{ color: '#e53935' }}>*</span></label>
+                    <div style={{ position: 'relative' }}>
+                      <input
+                        type={showConfirmNewPwd ? 'text' : 'password'}
+                        className="form-control"
+                        placeholder="Nhập lại mật khẩu mới"
+                        value={pwdForm.nhaplai_matkhau_moi}
+                        onChange={e => setPwdForm({ ...pwdForm, nhaplai_matkhau_moi: e.target.value })}
+                        onBlur={() => setPwdTouched(t => ({ ...t, nhaplai_matkhau_moi: true }))}
+                        style={{ paddingRight: 40 }}
+                      />
+                      <button type="button" onClick={() => setShowConfirmNewPwd(!showConfirmNewPwd)} title={showConfirmNewPwd ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
+                        style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 16, color: 'var(--text-muted)' }}>
+                        {showConfirmNewPwd ? '🙈' : '👁️'}
+                      </button>
+                    </div>
+                    <FieldError msg={getPwdError('nhaplai_matkhau_moi')} />
+                  </div>
+                </div>
+
+                <button
+                  id="btn-submit-change-password"
+                  type="submit"
+                  className="btn btn-primary"
+                  disabled={pwdSaving}
+                  style={{ justifyContent: 'center', width: '100%', marginTop: 8 }}
+                >
+                  {pwdSaving ? 'Đang đổi mật khẩu...' : '🔑 Đổi Mật Khẩu'}
+                </button>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Xác Nhận Đổi Mật Khẩu */}
       {showPwdConfirmModal && (
         <div className="modal-overlay" onClick={() => setShowPwdConfirmModal(false)}>
-          <div
-            className="modal"
-            style={{ maxWidth: 460, borderRadius: 20, padding: 0 }}
-            onClick={e => e.stopPropagation()}
-          >
+          <div className="modal" style={{ maxWidth: 460, borderRadius: 20, padding: 0 }} onClick={e => e.stopPropagation()}>
             <div className="modal-header" style={{ padding: '20px 24px' }}>
               <h3 style={{ fontSize: 18, color: 'var(--secondary)' }}>🔒 Xác Nhận Đổi Mật Khẩu</h3>
-              <button
-                className="cart-close"
-                onClick={() => setShowPwdConfirmModal(false)}
-                style={{ width: 32, height: 32, fontSize: 16 }}
-              >
-                ✕
-              </button>
+              <button className="cart-close" onClick={() => setShowPwdConfirmModal(false)} style={{ width: 32, height: 32, fontSize: 16 }}>✕</button>
             </div>
             <div className="modal-body" style={{ padding: '20px 24px' }}>
               <p style={{ fontSize: 14, color: 'var(--text)', lineHeight: 1.6, marginBottom: 16 }}>
@@ -470,31 +461,78 @@ export default function ProfilePage() {
                 ⚠️ <strong>Lưu ý:</strong> Mật khẩu cũ sẽ bị vô hiệu hóa ngay lập tức. Bạn cần sử dụng mật khẩu mới để đăng nhập trong các lần truy cập tiếp theo.
               </div>
             </div>
-            <div
-              className="modal-footer"
-              style={{
-                padding: '16px 24px', background: 'var(--bg)',
-                borderRadius: '0 0 20px 20px', display: 'flex', gap: 12, justifyContent: 'flex-end'
-              }}
-            >
-              <button
-                className="btn btn-outline"
-                onClick={() => setShowPwdConfirmModal(false)}
-                style={{ padding: '8px 20px', fontSize: 14 }}
-              >
-                Hủy bỏ
-              </button>
-              <button
-                className="btn btn-primary"
-                onClick={executeChangePassword}
-                style={{ padding: '8px 20px', fontSize: 14, background: '#c62828', borderColor: '#c62828' }}
-              >
+            <div className="modal-footer" style={{ padding: '16px 24px', background: 'var(--bg)', borderRadius: '0 0 20px 20px', display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
+              <button className="btn btn-outline" onClick={() => setShowPwdConfirmModal(false)} style={{ padding: '8px 20px', fontSize: 14 }}>Hủy bỏ</button>
+              <button className="btn btn-primary" onClick={executeChangePassword} style={{ padding: '8px 20px', fontSize: 14, background: '#c62828', borderColor: '#c62828' }}>
                 🔑 Xác Nhận Đổi
               </button>
             </div>
           </div>
         </div>
       )}
+
+      {/* Modal Xác Nhận Xóa Tài Khoản */}
+      {showDeleteModal && (
+        <div className="modal-overlay" onClick={() => !deleting && setShowDeleteModal(false)}>
+          <div className="modal" style={{ maxWidth: 460, borderRadius: 20, padding: 0 }} onClick={e => e.stopPropagation()}>
+            <div className="modal-header" style={{ padding: '20px 24px', background: '#ffeaea', borderRadius: '20px 20px 0 0' }}>
+              <h3 style={{ fontSize: 18, color: '#c62828' }}>🗑️ Xóa Tài Khoản</h3>
+              {!deleting && (
+                <button className="cart-close" onClick={() => setShowDeleteModal(false)} style={{ width: 32, height: 32, fontSize: 16 }}>✕</button>
+              )}
+            </div>
+            <div className="modal-body" style={{ padding: '20px 24px' }}>
+              {deleteMsg === '__success__' ? (
+                <div style={{ textAlign: 'center', padding: '12px 0' }}>
+                  <div style={{ fontSize: 48, marginBottom: 16 }}>✅</div>
+                  <div style={{ fontWeight: 700, fontSize: 17, color: 'var(--success)', marginBottom: 8 }}>
+                    Xóa tài khoản thành công!
+                  </div>
+                  <div style={{ color: 'var(--text-muted)', fontSize: 13 }}>
+                    Đang chuyển về trang đăng nhập...
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <p style={{ fontSize: 14, color: 'var(--text)', lineHeight: 1.7, marginBottom: 16 }}>
+                    Bạn có chắc chắn muốn <strong style={{ color: '#c62828' }}>xóa vĩnh viễn</strong> tài khoản <strong>@{user.taikhoan}</strong> không?
+                  </p>
+                  <div style={{ background: '#ffeaea', padding: '14px 16px', borderRadius: 12, border: '1px solid #ef9a9a', fontSize: 13, color: '#b71c1c', lineHeight: 1.6, marginBottom: 16 }}>
+                    ⚠️ <strong>Cảnh báo:</strong> Hành động này <strong>không thể hoàn tác</strong>. Toàn bộ thông tin cá nhân và lịch sử đơn hàng của bạn sẽ bị xóa vĩnh viễn khỏi hệ thống.
+                  </div>
+                  {deleteMsg && (
+                    <div style={{ background: '#ffeaea', border: '1px solid var(--error)', borderRadius: 10, padding: '10px 14px', color: 'var(--error)', fontWeight: 600, fontSize: 13 }}>
+                      ❌ {deleteMsg}
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+            {deleteMsg !== '__success__' && (
+              <div className="modal-footer" style={{ padding: '16px 24px', background: 'var(--bg)', borderRadius: '0 0 20px 20px', display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
+                <button
+                  className="btn btn-outline"
+                  onClick={() => setShowDeleteModal(false)}
+                  disabled={deleting}
+                  style={{ padding: '8px 20px', fontSize: 14 }}
+                >
+                  Hủy bỏ
+                </button>
+                <button
+                  id="btn-confirm-delete-account"
+                  className="btn btn-primary"
+                  onClick={handleDeleteAccount}
+                  disabled={deleting}
+                  style={{ padding: '8px 20px', fontSize: 14, background: '#c62828', borderColor: '#c62828' }}
+                >
+                  {deleting ? 'Đang xóa...' : '🗑️ Xác Nhận Xóa'}
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
+
   );
 }

@@ -244,6 +244,17 @@ def change_password(
     return {"message": "Đổi mật khẩu thành công."}
 
 
+@router.delete("/me")
+def delete_me(
+    current_user: dict = Depends(get_current_user),
+    db: sqlite3.Connection = Depends(get_db)
+):
+    """Người dùng tự xóa tài khoản của mình."""
+    db.execute("DELETE FROM NguoiDung WHERE taikhoan = ?", (current_user["sub"],))
+    db.commit()
+    return {"message": "Tài khoản đã được xóa thành công."}
+
+
 # ── Admin: quản lý người dùng ──────────────────────────────────────────
 @router.get("/users", response_model=list[NguoiDungOut])
 def list_users(admin=Depends(get_current_admin), db: sqlite3.Connection = Depends(get_db)):

@@ -91,7 +91,7 @@ export default function CartDrawer({ open, onClose }) {
               <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>({cartItems.length} mặt hàng)</span>
             </div>
           </div>
-          <button className="cart-close" onClick={onClose} aria-label="Đóng">✕</button>
+          <button id="DongGioHang" className="cart-close" onClick={onClose} aria-label="Đóng">✕</button>
         </div>
 
         {/* Thông báo lỗi CSDL (Luồng rẽ nhánh 3) */}
@@ -116,7 +116,7 @@ export default function CartDrawer({ open, onClose }) {
               <p style={{ color: 'var(--text-muted)', fontSize: 14, marginBottom: 24 }}>
                 Hiện chưa có mặt hàng nào trong bảng GIOHANG.
               </p>
-              <button className="btn btn-primary" onClick={handleContinueShopping}>
+              <button id="TiepTucMuaHang" className="btn btn-primary" onClick={handleContinueShopping}>
                 🛍️ Tiếp tục mua hàng
               </button>
             </div>
@@ -170,6 +170,7 @@ export default function CartDrawer({ open, onClose }) {
                         <span style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 600 }}>SL:</span>
                         <div style={{ display: 'inline-flex', alignItems: 'center', background: '#fff', border: '1px solid var(--border)', borderRadius: 8, overflow: 'hidden' }}>
                           <button
+                            id={`GiamSoLuong-${item.id_sp}`}
                             className="qty-btn"
                             style={{ width: 28, height: 28, borderRadius: 0, border: 'none' }}
                             onClick={() => handleQtyChange(item.id_sp, Math.max(0, Number(currentQty) - 1))}
@@ -177,6 +178,7 @@ export default function CartDrawer({ open, onClose }) {
                             −
                           </button>
                           <input
+                            id={`SoLuong-${item.id_sp}`}
                             type="number"
                             min={0}
                             max={item.soluong_sp || 999}
@@ -188,6 +190,7 @@ export default function CartDrawer({ open, onClose }) {
                             }}
                           />
                           <button
+                            id={`TangSoLuong-${item.id_sp}`}
                             className="qty-btn"
                             style={{ width: 28, height: 28, borderRadius: 0, border: 'none' }}
                             onClick={() => handleQtyChange(item.id_sp, Number(currentQty) + 1)}
@@ -199,6 +202,7 @@ export default function CartDrawer({ open, onClose }) {
                         {/* Nút Cập nhật */}
                         {isChanged && (
                           <button
+                            id={`CapNhatSoLuong-${item.id_sp}`}
                             onClick={() => handleUpdate(item)}
                             style={{
                               fontSize: 12, padding: '4px 10px', background: 'var(--primary)',
@@ -214,6 +218,7 @@ export default function CartDrawer({ open, onClose }) {
 
                     {/* Nút Xóa khỏi giỏ */}
                     <button
+                      id={`XoaSanPham-${item.id_sp}`}
                       onClick={() => handleRemove(item.id_sp)}
                       title="Xóa mặt hàng khỏi giỏ"
                       style={{
@@ -253,6 +258,7 @@ export default function CartDrawer({ open, onClose }) {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               {/* Nút Thanh toán */}
               <button
+                id="ThanhToan"
                 className="btn btn-primary w-full"
                 onClick={handleCheckout}
                 style={{ justifyContent: 'center', padding: '12px', fontSize: 15 }}
@@ -263,6 +269,7 @@ export default function CartDrawer({ open, onClose }) {
               {/* Nút Tiếp tục mua hàng & Xóa giỏ hàng */}
               <div style={{ display: 'flex', gap: 8 }}>
                 <button
+                  id="TiepTucMuaHang2"
                   className="btn btn-outline"
                   onClick={handleContinueShopping}
                   style={{ flex: 1, justifyContent: 'center', padding: '10px', fontSize: 13 }}
@@ -271,6 +278,7 @@ export default function CartDrawer({ open, onClose }) {
                 </button>
 
                 <button
+                  id="XoaGioHang"
                   className="btn"
                   onClick={handleClearCart}
                   style={{

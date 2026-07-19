@@ -10,6 +10,19 @@ import uuid
 
 router = APIRouter(prefix="/api/sanpham", tags=["Sản Phẩm"])
 
+
+def _check_db_flag():
+    """Kiểm tra cờ giả lập lỗi CSDL từ test_router."""
+    try:
+        from routers.test_router import is_db_error_simulated
+        if is_db_error_simulated():
+            raise HTTPException(
+                status_code=503,
+                detail="Lỗi kết nối cơ sở dữ liệu. Vui lòng thử lại sau."
+            )
+    except ImportError:
+        pass
+
 UPLOAD_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "uploads")
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
@@ -122,3 +135,37 @@ async def upload_product_image(
     db.execute("UPDATE SanPham SET anh_sp = ? WHERE id_sp = ?", (filename, id_sp))
     db.commit()
     return {"anh_sp": filename, "message": "Upload ảnh thành công."}
+
+
+@router.post("/{id_sp}/add-to-cart")
+def add_to_cart_validate(
+    id_sp: int,
+    soluong: int = 1,
+    db: sqlite3.Connection = Depends(get_db)
+):
+    """
+    Kiểm tra tồn kho khi người dùng click 'Thêm vào giỏ'.
+    Endpoint này được frontend gọi để xác nhận với CSDL trước khi
+    thêm sản phẩm vào giỏ hàng localStorage.
+    Nếu đang giả lập lỗi CSDL, sẽ trả về HTTP 503.
+    """
+    # Kiểm tra cờ giả lập lỗi CSDL
+    _check_db_flag()
+
+    sp = db.execute(
+        "SELECT id_sp, ten_sp, soluong_sp FROM SanPham WHERE id_sp = ?",
+        (id_sp,)
+    ).fetchone()
+    if not sp:
+        raise HTTPException(status_code=404, detail="Không tìm thấy sản phẩm.")
+    if sp["soluong_sp"] < soluong:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Sản phẩm chỉ còn {sp['soluong_sp']} trong kho."
+        )
+    return {
+        "ok": True,
+        "id_sp": sp["id_sp"],
+        "ten_sp": sp["ten_sp"],
+        "soluong_con_lai": sp["soluong_sp"]
+    }
