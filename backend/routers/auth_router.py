@@ -151,6 +151,17 @@ def reset_password(body: ResetPasswordRequest, db: sqlite3.Connection = Depends(
 @router.post("/register", response_model=NguoiDungOut, status_code=201)
 def register(user: NguoiDungCreate, db: sqlite3.Connection = Depends(get_db)):
     """Đăng ký tài khoản mới."""
+    import re
+
+    # Validate tên tài khoản
+    tk = user.taikhoan
+    if len(tk) < 4 or len(tk) > 20:
+        raise HTTPException(status_code=400, detail="Tài khoản phải từ 4 đến 20 ký tự.")
+    if not re.match(r'^[a-zA-Z0-9_]+$', tk):
+        raise HTTPException(status_code=400, detail="Tài khoản chỉ được dùng chữ cái, chữ số và dấu gạch dưới (_), không có khoảng trắng.")
+    if not re.match(r'^[A-Z]', tk):
+        raise HTTPException(status_code=400, detail="Tài khoản phải bắt đầu bằng chữ cái in hoa (ví dụ: Fashionbag123).")
+
     # Kiểm tra tài khoản đã tồn tại
     existing = db.execute(
         "SELECT id_nguoidung FROM NguoiDung WHERE taikhoan = ?", (user.taikhoan,)
