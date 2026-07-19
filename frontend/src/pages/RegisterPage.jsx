@@ -19,11 +19,7 @@ const RULES = {
     if (!/^(?=.*[a-zA-Z])(?=.*\d)/.test(v)) return 'Mật khẩu quá yếu! Nên bao gồm cả chữ cái và chữ số (ví dụ: Fashion123).';
     return '';
   },
-  nhaplai_matkhau: (v, form) => {
-    if (!v) return 'Vui lòng nhập lại mật khẩu để xác nhận.';
-    if (v !== form?.matkhau) return '❌ Mật khẩu nhập lại không khớp! Vui lòng kiểm tra lại.';
-    return '';
-  },
+
   hoten: (v) => {
     if (!v) return ''; // Không bắt buộc
     if (!/^[\p{L}\s]+$/u.test(v)) return 'Họ tên chỉ được chứa chữ cái (kể cả có dấu tiếng Việt) và khoảng trắng.';
@@ -77,11 +73,10 @@ function inputStyle(hasError) {
 
 export default function RegisterPage() {
   const [form, setForm] = useState({
-    taikhoan: '', matkhau: '', nhaplai_matkhau: '', hoten: '',
+    taikhoan: '', matkhau: '', hoten: '',
     email: '', sdt: '', gioitinh: '', namsinh: ''
   });
   const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [touched, setTouched] = useState({});
   const [loading, setLoading] = useState(false);
   const [serverError, setServerError] = useState('');
@@ -112,7 +107,7 @@ export default function RegisterPage() {
     setLoading(true);
     setServerError('');
     try {
-      const { nhaplai_matkhau, ...registerData } = form;
+      const registerData = form;
       await authAPI.register({
         ...registerData,
         namsinh: form.namsinh ? Number(form.namsinh) : null
@@ -168,75 +163,38 @@ export default function RegisterPage() {
             <FieldError msg={getError('taikhoan')} />
           </div>
 
-          {/* Row: Mật khẩu + Nhập lại Mật khẩu */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-            {/* Mật khẩu */}
-            <div className="form-group">
-              <label className="form-label" htmlFor="reg-matkhau">
-                Mật Khẩu <span style={{ color: '#e53935' }}>*</span>
-              </label>
-              <div style={{ position: 'relative' }}>
-                <input
-                  id="reg-matkhau"
-                  type={showPassword ? 'text' : 'password'}
-                  className="form-control"
-                  placeholder="Bao gồm chữ & số"
-                  value={form.matkhau}
-                  style={{ ...inputStyle(!!getError('matkhau')), paddingRight: 40 }}
-                  onChange={e => handleChange('matkhau', e.target.value)}
-                  onBlur={() => handleBlur('matkhau')}
-                  autoComplete="new-password"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  title={showPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
-                  style={{
-                    position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)',
-                    background: 'none', border: 'none', cursor: 'pointer', fontSize: 16,
-                    padding: 4, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    color: 'var(--text-muted)'
-                  }}
-                >
-                  {showPassword ? '🙈' : '👁️'}
-                </button>
-              </div>
-              <FieldError msg={getError('matkhau')} />
+          {/* Mật khẩu */}
+          <div className="form-group">
+            <label className="form-label" htmlFor="reg-matkhau">
+              Mật Khẩu <span style={{ color: '#e53935' }}>*</span>
+            </label>
+            <div style={{ position: 'relative' }}>
+              <input
+                id="reg-matkhau"
+                type={showPassword ? 'text' : 'password'}
+                className="form-control"
+                placeholder="Bao gồm chữ & số"
+                value={form.matkhau}
+                style={{ ...inputStyle(!!getError('matkhau')), paddingRight: 40 }}
+                onChange={e => handleChange('matkhau', e.target.value)}
+                onBlur={() => handleBlur('matkhau')}
+                autoComplete="new-password"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                title={showPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
+                style={{
+                  position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)',
+                  background: 'none', border: 'none', cursor: 'pointer', fontSize: 16,
+                  padding: 4, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  color: 'var(--text-muted)'
+                }}
+              >
+                {showPassword ? '🙈' : '👁️'}
+              </button>
             </div>
-
-            {/* Nhập lại Mật khẩu */}
-            <div className="form-group">
-              <label className="form-label" htmlFor="reg-nhaplai-matkhau">
-                Nhập Lại Mật Khẩu <span style={{ color: '#e53935' }}>*</span>
-              </label>
-              <div style={{ position: 'relative' }}>
-                <input
-                  id="reg-nhaplai-matkhau"
-                  type={showConfirmPassword ? 'text' : 'password'}
-                  className="form-control"
-                  placeholder="Xác nhận mật khẩu"
-                  value={form.nhaplai_matkhau}
-                  style={{ ...inputStyle(!!getError('nhaplai_matkhau')), paddingRight: 40 }}
-                  onChange={e => handleChange('nhaplai_matkhau', e.target.value)}
-                  onBlur={() => handleBlur('nhaplai_matkhau')}
-                  autoComplete="new-password"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                  title={showConfirmPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
-                  style={{
-                    position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)',
-                    background: 'none', border: 'none', cursor: 'pointer', fontSize: 16,
-                    padding: 4, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    color: 'var(--text-muted)'
-                  }}
-                >
-                  {showConfirmPassword ? '🙈' : '👁️'}
-                </button>
-              </div>
-              <FieldError msg={getError('nhaplai_matkhau')} />
-            </div>
+            <FieldError msg={getError('matkhau')} />
           </div>
 
           {/* Họ tên */}
