@@ -7,10 +7,10 @@ from datetime import datetime
 class NguoiDungBase(BaseModel):
     taikhoan: str
     hoten: Optional[str] = None
-    gioitinh: Optional[str] = None
-    sdt: Optional[str] = None
-    email: Optional[str] = None
-    namsinh: Optional[int] = None
+    gioitinh: str
+    sdt: str
+    email: str
+    namsinh: int
     quyen: Optional[str] = "user"
 
 

@@ -11,6 +11,7 @@ const RULES = {
     if (!v) return 'Tài khoản không được để trống.';
     if (v.length < 4 || v.length > 20) return 'Tài khoản phải từ 4 đến 20 ký tự.';
     if (!/^[a-zA-Z0-9_]+$/.test(v)) return 'Chỉ được dùng chữ cái, chữ số và dấu gạch dưới (_), không có khoảng trắng.';
+    if (!/^[A-Z]/.test(v)) return 'Tài khoản phải bắt đầu bằng chữ cái in hoa (ví dụ: Fashionbag123).';
     return '';
   },
   matkhau: (v) => {
@@ -30,23 +31,27 @@ const RULES = {
     return '';
   },
   email: (v) => {
-    if (!v) return ''; // Không bắt buộc
+    if (!v) return 'Email không được để trống.';
     if (!/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(v.trim())) {
       return 'Email không đúng định dạng (ví dụ: example@gmail.com).';
     }
     return '';
   },
   sdt: (v) => {
-    if (!v) return ''; // Không bắt buộc
+    if (!v) return 'Số điện thoại không được để trống.';
     if (v.length < 10) return `Số điện thoại chưa đủ 10 số (hiện mới có ${v.length}/10 số).`;
     if (!/^0(3|5|7|8|9)\d{8}$/.test(v)) return 'Số điện thoại không hợp lệ (phải đủ 10 số và bắt đầu bằng đầu số 03, 05, 07, 08, 09).';
     return '';
   },
   namsinh: (v) => {
-    if (!v) return ''; // Không bắt buộc
+    if (!v) return 'Năm sinh không được để trống.';
     const n = Number(v);
     if (!Number.isInteger(n) || n < 1930 || n > MAX_BIRTH_YEAR)
       return `Năm sinh phải từ 1930 đến ${MAX_BIRTH_YEAR}.`;
+    return '';
+  },
+  gioitinh: (v) => {
+    if (!v) return 'Vui lòng chọn giới tính.';
     return '';
   },
 };
@@ -129,7 +134,7 @@ export default function RegisterPage() {
             FashionBag
           </div>
         </div>
-        <h2 className="auth-title">Tạo Tài Khoản</h2>
+        <h2 className="auth-title">Đăng Ký Tài Khoản</h2>
         <p className="auth-sub">Tham gia cộng đồng FashionBag</p>
 
         {/* Lỗi từ server */}
@@ -253,7 +258,7 @@ export default function RegisterPage() {
           {/* Row: Email + SĐT */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
             <div className="form-group">
-              <label className="form-label" htmlFor="reg-email">Email</label>
+              <label className="form-label" htmlFor="reg-email">Email <span style={{ color: '#e53935' }}>*</span></label>
               <input
                 id="reg-email"
                 type="text"
@@ -268,7 +273,7 @@ export default function RegisterPage() {
               <FieldError msg={getError('email')} />
             </div>
             <div className="form-group">
-              <label className="form-label" htmlFor="reg-sdt">Số Điện Thoại</label>
+              <label className="form-label" htmlFor="reg-sdt">Số Điện Thoại <span style={{ color: '#e53935' }}>*</span></label>
               <input
                 id="reg-sdt"
                 type="tel"
@@ -292,21 +297,24 @@ export default function RegisterPage() {
           {/* Row: Giới tính + Năm sinh */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
             <div className="form-group">
-              <label className="form-label" htmlFor="reg-gioitinh">Giới Tính</label>
+              <label className="form-label" htmlFor="reg-gioitinh">Giới Tính <span style={{ color: '#e53935' }}>*</span></label>
               <select
                 id="reg-gioitinh"
                 className="form-control"
                 value={form.gioitinh}
-                onChange={e => handleChange('gioitinh', e.target.value)}
+                style={inputStyle(touched['gioitinh'] && !!RULES.gioitinh(form.gioitinh))}
+                onChange={e => { handleChange('gioitinh', e.target.value); handleBlur('gioitinh'); }}
+                onBlur={() => handleBlur('gioitinh')}
               >
                 <option value="">-- Chọn --</option>
                 <option value="Nam">Nam</option>
                 <option value="Nữ">Nữ</option>
                 <option value="Khác">Khác</option>
               </select>
+              <FieldError msg={touched['gioitinh'] ? RULES.gioitinh(form.gioitinh) : ''} />
             </div>
             <div className="form-group">
-              <label className="form-label" htmlFor="reg-namsinh">Năm Sinh</label>
+              <label className="form-label" htmlFor="reg-namsinh">Năm Sinh <span style={{ color: '#e53935' }}>*</span></label>
               <input
                 id="reg-namsinh"
                 type="number"
@@ -341,7 +349,7 @@ export default function RegisterPage() {
             disabled={loading}
             style={{ justifyContent: 'center' }}
           >
-            {loading ? 'Đang đăng ký...' : 'Tạo Tài Khoản'}
+            {loading ? 'Đang đăng ký...' : 'Đăng Ký'}
           </button>
         </form>
 
