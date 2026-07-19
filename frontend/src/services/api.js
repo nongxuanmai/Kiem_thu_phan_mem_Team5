@@ -35,6 +35,7 @@ export const authAPI = {
   getMe: () => api.get('/auth/me'),
   updateMe: (data) => api.put('/auth/me', data),
   changePassword: (data) => api.post('/auth/change-password', data),
+  deleteMe: () => api.delete('/auth/me'),
   sendOtp: (data) => api.post('/auth/send-otp', data),
   resetPassword: (data) => api.post('/auth/reset-password', data),
   resetPasswordDirect: (data) => api.post('/auth/reset-password-direct', data),
@@ -53,6 +54,16 @@ export const sanphamAPI = {
     api.post(`/sanpham/${id}/upload-image`, formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     }),
+  // Gọi trước khi thêm vào giỏ – xác nhận tồn kho với CSDL
+  addToCartValidate: (id, soluong) =>
+    api.post(`/sanpham/${id}/add-to-cart`, null, { params: { soluong } }),
+};
+
+// ─── Testing ─────────────────────────────────────────────────────────────────
+export const testAPI = {
+  simulateDbError: () => api.post('/test/simulate-db-error'),
+  restoreDb: () => api.post('/test/restore-db'),
+  getDbStatus: () => api.get('/test/db-status'),
 };
 
 // ─── Danh mục ───────────────────────────────────────────────────────────────

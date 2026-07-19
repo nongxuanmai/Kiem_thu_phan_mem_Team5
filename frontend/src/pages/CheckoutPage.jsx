@@ -291,7 +291,7 @@ export default function CheckoutPage() {
               <textarea className="form-control" rows={3} placeholder="Ghi chú thêm về đơn hàng..." value={form.ghichu} onChange={e => setForm({ ...form, ghichu: e.target.value })} style={{ resize: 'vertical' }} />
             </div>
 
-            <button type="submit" className="btn btn-primary w-full" disabled={loading} style={{ justifyContent: 'center', fontSize: 16, padding: '16px' }}>
+            <button id="DatHang" type="submit" className="btn btn-primary w-full" disabled={loading} style={{ justifyContent: 'center', fontSize: 16, padding: '16px' }}>
               {loading ? 'Đang xử lý...' : `Đặt Hàng · ${formatPrice(finalTotal)}`}
             </button>
           </form>
@@ -324,6 +324,7 @@ export default function CheckoutPage() {
               {/* Ô nhập mã */}
               <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
                 <input
+                  id="MaGiamGia"
                   className="form-control"
                   placeholder="Nhập mã ưu đãi..."
                   value={inputCode}
@@ -331,6 +332,7 @@ export default function CheckoutPage() {
                   style={{ textTransform: 'uppercase', fontWeight: 600 }}
                 />
                 <button
+                  id="ApDungVoucher"
                   type="button"
                   className="btn btn-outline"
                   onClick={() => applyVoucherCode()}

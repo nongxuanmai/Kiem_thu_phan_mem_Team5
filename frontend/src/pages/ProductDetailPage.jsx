@@ -48,6 +48,8 @@ export default function ProductDetailPage() {
   const [loading, setLoading] = useState(true);
   const [qty, setQty] = useState(1);
   const [added, setAdded] = useState(false);
+  const [addLoading, setAddLoading] = useState(false);
+  const [addError, setAddError] = useState('');
 
   // Đánh giá
   const [reviews, setReviews] = useState([]);
@@ -81,10 +83,25 @@ export default function ProductDetailPage() {
     }
   }, [user]);
 
-  const handleAdd = () => {
-    addToCart(product, qty);
-    setAdded(true);
-    setTimeout(() => setAdded(false), 2000);
+  const handleAdd = async () => {
+    setAddError('');
+    setAddLoading(true);
+    try {
+      // Gọi API backend xác nhận tồn kho – bước này sẽ lỗi khi CSDL mất kết nối
+      await sanphamAPI.addToCartValidate(product.id_sp, qty);
+      // Nếu thành công mới thêm vào giỏ localStorage
+      addToCart(product, qty);
+      setAdded(true);
+      setTimeout(() => setAdded(false), 2000);
+    } catch (err) {
+      const msg =
+        err?.response?.data?.detail ||
+        'Lỗi kết nối cơ sở dữ liệu. Vui lòng thử lại sau.';
+      setAddError(msg);
+      setTimeout(() => setAddError(''), 5000);
+    } finally {
+      setAddLoading(false);
+    }
   };
 
   const handleBuyNow = () => {
@@ -198,27 +215,54 @@ export default function ProductDetailPage() {
             {product.soluong_sp > 0 && (
               <div className="qty-selector" style={{ marginTop: 20 }}>
                 <span style={{ fontWeight: 600 }}>Số lượng:</span>
-                <button className="qty-btn" onClick={() => setQty(q => Math.max(1, q - 1))}>−</button>
+                <button id="GiamSoLuong" className="qty-btn" onClick={() => setQty(q => Math.max(1, q - 1))}>−</button>
                 <input
+                  id="SoLuong"
                   className="qty-input"
                   type="number" min={1} max={product.soluong_sp}
                   value={qty}
                   onChange={e => setQty(Math.min(product.soluong_sp, Math.max(1, Number(e.target.value))))}
                 />
-                <button className="qty-btn" onClick={() => setQty(q => Math.min(product.soluong_sp, q + 1))}>+</button>
+                <button id="TangSoLuong" className="qty-btn" onClick={() => setQty(q => Math.min(product.soluong_sp, q + 1))}>+</button>
+              </div>
+            )}
+
+            {/* Thông báo lỗi CSDL */}
+            {addError && (
+              <div
+                id="ThemVaoGioHangError"
+                role="alert"
+                style={{
+                  marginTop: 16,
+                  background: '#ffeaea',
+                  color: '#c62828',
+                  border: '1.5px solid #f44336',
+                  borderRadius: 10,
+                  padding: '12px 18px',
+                  fontSize: 14,
+                  fontWeight: 600,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                }}
+              >
+                <span style={{ fontSize: 18 }}>⚠️</span>
+                {addError}
               </div>
             )}
 
             <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginTop: 24 }}>
               <button
+                id="ThemVaoGioHang"
                 className="btn btn-primary"
                 onClick={handleAdd}
-                disabled={product.soluong_sp === 0}
-                style={{ flex: 1, justifyContent: 'center', padding: '14px 20px' }}
+                disabled={product.soluong_sp === 0 || addLoading}
+                style={{ flex: 1, justifyContent: 'center', padding: '14px 20px', opacity: addLoading ? 0.7 : 1 }}
               >
-                {added ? '✓ Đã thêm vào giỏ!' : '🛍️ Thêm vào giỏ hàng'}
+                {addLoading ? '⏳ Đang xử lý...' : added ? '✓ Đã thêm vào giỏ!' : '🛗️ Thêm vào giỏ hàng'}
               </button>
               <button
+                id="MuaNgay"
                 className="btn btn-dark"
                 onClick={handleBuyNow}
                 disabled={product.soluong_sp === 0}
