@@ -11,7 +11,6 @@ const RULES = {
     if (!v) return 'Tài khoản không được để trống.';
     if (v.length < 4 || v.length > 20) return 'Tài khoản phải từ 4 đến 20 ký tự.';
     if (!/^[a-zA-Z0-9_]+$/.test(v)) return 'Chỉ được dùng chữ cái, chữ số và dấu gạch dưới (_), không có khoảng trắng.';
-    if (!/^[A-Z]/.test(v)) return 'Tài khoản phải bắt đầu bằng chữ cái in hoa (ví dụ: Fashionbag123).';
     return '';
   },
   matkhau: (v) => {

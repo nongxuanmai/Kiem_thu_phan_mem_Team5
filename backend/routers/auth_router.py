@@ -159,8 +159,6 @@ def register(user: NguoiDungCreate, db: sqlite3.Connection = Depends(get_db)):
         raise HTTPException(status_code=400, detail="Tài khoản phải từ 4 đến 20 ký tự.")
     if not re.match(r'^[a-zA-Z0-9_]+$', tk):
         raise HTTPException(status_code=400, detail="Tài khoản chỉ được dùng chữ cái, chữ số và dấu gạch dưới (_), không có khoảng trắng.")
-    if not re.match(r'^[A-Z]', tk):
-        raise HTTPException(status_code=400, detail="Tài khoản phải bắt đầu bằng chữ cái in hoa (ví dụ: Fashionbag123).")
 
     # Kiểm tra tài khoản đã tồn tại
     existing = db.execute(
